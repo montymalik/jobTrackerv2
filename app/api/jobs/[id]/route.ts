@@ -34,6 +34,18 @@ export async function PUT(
     const dateOfInterview = formData.get("dateOfInterview") as string | null;
     const confirmationReceived = formData.get("confirmationReceived") === "true";
 
+    // Fetch the existing job data from the database
+    const existingJob = await prisma.jobApplication.findUnique({
+      where: { id },
+    });
+
+    if (!existingJob) {
+      return NextResponse.json(
+        { error: "Job application not found" },
+        { status: 404 }
+      );
+    }
+
     // Prepare the job data for the update
     const jobData: {
       companyName?: string;
@@ -44,34 +56,26 @@ export async function PUT(
       dateSubmitted?: Date | null;
       dateOfInterview?: Date | null;
       confirmationReceived?: boolean;
-    } = {};
+    } = {
+      companyName: companyName || existingJob.companyName,
+      jobTitle: jobTitle || existingJob.jobTitle,
+      jobDescription: jobDescription || existingJob.jobDescription,
+      jobUrl: jobUrl || existingJob.jobUrl,
+      status: status || existingJob.status,
+      confirmationReceived: confirmationReceived !== undefined ? confirmationReceived : existingJob.confirmationReceived,
+    };
 
-    if (companyName) {
-      jobData.companyName = companyName;
-    }
-    if (jobTitle) {
-      jobData.jobTitle = jobTitle;
-    }
-    if (jobDescription) {
-      jobData.jobDescription = jobDescription;
-    }
-    if (jobUrl) {
-      jobData.jobUrl = jobUrl;
-    }
-    if (status) {
-      jobData.status = status;
-    }
-    if (dateSubmitted) {
-      jobData.dateSubmitted = dateSubmitted && dateSubmitted.trim() !== "" ? new Date(dateSubmitted) : null;
+    if (dateSubmitted !== null && dateSubmitted !== undefined) {
+      jobData.dateSubmitted = dateSubmitted.trim() !== "" ? new Date(dateSubmitted) : null;
     } else {
-      jobData.dateSubmitted = null;
+      jobData.dateSubmitted = existingJob.dateSubmitted;
     }
-    if (dateOfInterview) {
+
+    if (dateOfInterview !== null && dateOfInterview !== undefined) {
       jobData.dateOfInterview = dateOfInterview && dateOfInterview.trim() !== "" ? new Date(dateOfInterview) : null;
     } else {
-      jobData.dateOfInterview = null;
+      jobData.dateOfInterview = existingJob.dateOfInterview;
     }
-    jobData.confirmationReceived = confirmationReceived;
 
     console.log("Job Data to Update:", jobData);
 
@@ -85,10 +89,23 @@ export async function PUT(
     console.log("Updated Job:", job);
 
     return NextResponse.json(job);
-  } catch (error) {
+  } catch (error: any) {
     console.error("Failed to update job status:", error);
+    let message = "Unknown error";
+    if (error instanceof Error) {
+      message = error.message;
+    } else if (typeof error === 'string') {
+      message = error;
+    } else {
+      try {
+        message = JSON.stringify(error);
+      } catch (stringifyError) {
+        message = "Failed to stringify error";
+      }
+    }
+
     return NextResponse.json(
-      { error: "Failed to update job status", details: error.message },
+      { error: "Failed to update job status", details: message },
       { status: 500 }
     );
   }
