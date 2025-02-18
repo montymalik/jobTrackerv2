@@ -10,22 +10,22 @@ export async function PUT(
     const formData = await request.formData();
     const status = formData.get("status") as ApplicationStatus;
 
-    console.log("Received status:", status); // Log the status
-    console.log("Job ID:", params.id); // Log the job ID
+    const jobData = {
+      status: status,
+      dateSubmitted: formData.get("dateSubmitted") ? new Date(formData.get("dateSubmitted") as string) : null,
+      dateOfInterview: formData.get("dateOfInterview") ? new Date(formData.get("dateOfInterview") as string) : null,
+      confirmationReceived: formData.get("confirmationReceived") === "true",
+    };
 
     const job = await prisma.jobApplication.update({
       where: { id: params.id },
-      data: { status: status },
+      data: jobData,
       include: { files: true },
     });
-
-    console.log("Updated job:", job); // Log the updated job
 
     return NextResponse.json(job);
   } catch (error) {
     console.error("Failed to update job status:", error);
-
-    // Ensure the error response is always JSON
     return NextResponse.json(
       { error: "Failed to update job status", details: error.message },
       { status: 500 }

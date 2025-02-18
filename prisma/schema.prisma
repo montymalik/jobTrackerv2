@@ -27,6 +27,9 @@ model JobApplication {
   notes           String?          @db.Text
   createdAt       DateTime         @default(now())
   updatedAt       DateTime         @updatedAt
+  dateSubmitted   DateTime?
+  dateOfInterview DateTime?
+  confirmationReceived Boolean @default(false)
 
   @@index([status])
 }

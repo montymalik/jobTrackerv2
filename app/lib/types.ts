@@ -14,6 +14,9 @@ export interface JobApplication {
   notes?: string | null;
   createdAt: Date;
   updatedAt: Date;
+  dateSubmitted?: Date | null;
+  dateOfInterview?: Date | null;
+  confirmationReceived: boolean;
 }
 
 export interface JobFile {
