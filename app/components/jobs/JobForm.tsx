@@ -1,4 +1,4 @@
-import { JobApplication, ApplicationStatus } from "@/app/lib/types";
+import { JobApplication } from "@/app/lib/types";
 import { useState } from "react";
 
 interface JobFormProps {
@@ -17,6 +17,9 @@ export function JobForm({ job, onSubmit, onCancel }: JobFormProps) {
     try {
       const form = e.currentTarget;
       const formData = new FormData(form);
+
+      // Log the form data for debugging
+      console.log("Form Data to Submit:", Object.fromEntries(formData.entries()));
 
       // Add status if not present
       if (!formData.get("status")) {
@@ -38,6 +41,7 @@ export function JobForm({ job, onSubmit, onCancel }: JobFormProps) {
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
+      {/* Company Name */}
       <div>
         <label
           htmlFor="companyName"
@@ -55,6 +59,7 @@ export function JobForm({ job, onSubmit, onCancel }: JobFormProps) {
         />
       </div>
 
+      {/* Job Title */}
       <div>
         <label
           htmlFor="jobTitle"
@@ -72,6 +77,7 @@ export function JobForm({ job, onSubmit, onCancel }: JobFormProps) {
         />
       </div>
 
+      {/* Job URL */}
       <div>
         <label
           htmlFor="jobUrl"
@@ -88,6 +94,7 @@ export function JobForm({ job, onSubmit, onCancel }: JobFormProps) {
         />
       </div>
 
+      {/* Job Description */}
       <div>
         <label
           htmlFor="jobDescription"
@@ -104,6 +111,7 @@ export function JobForm({ job, onSubmit, onCancel }: JobFormProps) {
         />
       </div>
 
+      {/* Date Submitted */}
       <div>
         <label
           htmlFor="dateSubmitted"
@@ -115,11 +123,12 @@ export function JobForm({ job, onSubmit, onCancel }: JobFormProps) {
           type="date"
           id="dateSubmitted"
           name="dateSubmitted"
-          defaultValue={job?.dateSubmitted ? job.dateSubmitted.toISOString().split('T')[0] : ""}
+          defaultValue={job?.dateSubmitted ? job.dateSubmitted.toISOString().split("T")[0] : ""}
           className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-blue-500"
         />
       </div>
 
+      {/* Date of Interview */}
       <div>
         <label
           htmlFor="dateOfInterview"
@@ -131,11 +140,12 @@ export function JobForm({ job, onSubmit, onCancel }: JobFormProps) {
           type="date"
           id="dateOfInterview"
           name="dateOfInterview"
-          defaultValue={job?.dateOfInterview ? job.dateOfInterview.toISOString().split('T')[0] : ""}
+          defaultValue={job?.dateOfInterview ? job.dateOfInterview.toISOString().split("T")[0] : ""}
           className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-blue-500"
         />
       </div>
 
+      {/* Confirmation Received */}
       <div>
         <label
           htmlFor="confirmationReceived"
@@ -152,6 +162,7 @@ export function JobForm({ job, onSubmit, onCancel }: JobFormProps) {
         />
       </div>
 
+      {/* File Upload */}
       <div>
         <label className="block text-sm font-medium text-gray-700">
           Upload Files
@@ -164,6 +175,7 @@ export function JobForm({ job, onSubmit, onCancel }: JobFormProps) {
         />
       </div>
 
+      {/* Buttons */}
       <div className="mt-4 flex justify-end gap-2">
         <button
           type="button"

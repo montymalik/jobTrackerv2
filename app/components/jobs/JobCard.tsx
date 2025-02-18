@@ -15,6 +15,10 @@ export function JobCard({ job, onClick }: JobCardProps) {
     }),
   }));
 
+  // Safely convert dateSubmitted and dateOfInterview to Date objects if they exist
+  const submittedDate = job.dateSubmitted ? new Date(job.dateSubmitted) : null;
+  const interviewDate = job.dateOfInterview ? new Date(job.dateOfInterview) : null;
+
   return (
     <div
       ref={drag}
@@ -26,15 +30,15 @@ export function JobCard({ job, onClick }: JobCardProps) {
         <h3 className="font-semibold text-gray-900">{job.companyName}</h3>
         <p className="text-sm text-gray-600">{job.jobTitle}</p>
 
-        {job.dateSubmitted && (
+        {submittedDate && (
           <p className="text-xs text-gray-500">
-            Submitted: {job.dateSubmitted.toLocaleDateString()}
+            Submitted: {submittedDate.toLocaleDateString()}
           </p>
         )}
 
-        {job.dateOfInterview && (
+        {interviewDate && (
           <p className="text-xs text-gray-500">
-            Interview: {job.dateOfInterview.toLocaleDateString()}
+            Interview: {interviewDate.toLocaleDateString()}
           </p>
         )}
 

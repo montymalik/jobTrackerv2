@@ -40,6 +40,8 @@ function HomePage() {
   const handleSubmit = async (formData: FormData) => {
     try {
       setError(null);
+      console.log("Submitting Form Data:", Object.fromEntries(formData.entries()));
+
       const response = await fetch(
         selectedJob ? `/api/jobs/${selectedJob.id}` : "/api/jobs",
         {
@@ -48,11 +50,16 @@ function HomePage() {
         }
       );
 
-      const data = await response.json();
+      const responseText = await response.text();
+      console.log("Response Text:", responseText);
+
+      const data = JSON.parse(responseText);
 
       if (!response.ok) {
         throw new Error(data.error || "Failed to save job");
       }
+
+      console.log("Job Saved Successfully:", data);
 
       await fetchJobs();
       setIsModalOpen(false);
@@ -78,19 +85,26 @@ function HomePage() {
       console.log("Response Text:", responseText); // Log the response text
 
       if (!response.ok) {
+        if (!responseText.trim()) {
+          throw new Error(`Server responded with status ${response.status} but no error message.`);
+        }
         try {
           const errorData = JSON.parse(responseText); // Try to parse the response as JSON
           throw new Error(errorData.error || "Failed to update status");
         } catch (jsonError) {
           console.error("JSON Parse Error:", jsonError);
-          console.error("Raw Response Text:", responseText); // Log the raw response text
+          console.error("Raw Response Text:", responseText);
           throw new Error(`Unexpected response: ${responseText}`);
         }
       }
 
-      // If the response is valid, parse it as JSON
+      // For a successful response, ensure there's some content to parse
+      if (!responseText.trim()) {
+        throw new Error("Empty response from server");
+      }
+
       const data = JSON.parse(responseText);
-      console.log("Updated Job Data:", data); // Log the updated job data
+      console.log("Updated Job Data:", data);
 
       await fetchJobs();
     } catch (error) {
@@ -99,6 +113,11 @@ function HomePage() {
       );
       console.error("Error updating status:", error);
     }
+  };
+
+  const handleJobClick = (job: JobApplication) => {
+    setSelectedJob(job);
+    setIsModalOpen(true);
   };
 
   if (isLoading) {
@@ -138,21 +157,21 @@ function HomePage() {
             title="To Apply"
             status="TO_APPLY"
             jobs={jobs.filter((job) => job.status === "TO_APPLY")}
-            onJobClick={setSelectedJob}
+            onJobClick={handleJobClick}
             onDropJob={handleDropJob}
           />
           <Column
             title="Applied"
             status="APPLIED"
             jobs={jobs.filter((job) => job.status === "APPLIED")}
-            onJobClick={setSelectedJob}
+            onJobClick={handleJobClick}
             onDropJob={handleDropJob}
           />
           <Column
             title="Interview Scheduled"
             status="INTERVIEW_SCHEDULED"
             jobs={jobs.filter((job) => job.status === "INTERVIEW_SCHEDULED")}
-            onJobClick={setSelectedJob}
+            onJobClick={handleJobClick}
             onDropJob={handleDropJob}
           />
         </div>
