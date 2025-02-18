@@ -1,0 +1,46 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum ApplicationStatus {
+  TO_APPLY
+  APPLIED
+  INTERVIEW_SCHEDULED
+}
+
+model JobApplication {
+  id              String            @id @default(cuid())
+  companyName     String
+  jobTitle        String
+  jobDescription  String?          @db.Text
+  jobUrl          String?
+  status          ApplicationStatus @default(TO_APPLY)
+  dateApplied     DateTime?
+  contactInfo     Json?
+  hasBeenContacted Boolean         @default(false)
+  files           JobFile[]
+  notes           String?          @db.Text
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+
+  @@index([status])
+}
+
+model JobFile {
+  id                String         @id @default(cuid())
+  fileName          String
+  fileType          String
+  nextcloudPath     String
+  jobApplication    JobApplication @relation(fields: [jobApplicationId], references: [id], onDelete: Cascade)
+  jobApplicationId  String
+  createdAt         DateTime       @default(now())
+  updatedAt         DateTime       @updatedAt
+
+  @@index([jobApplicationId])
+}
+
