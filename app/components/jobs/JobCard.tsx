@@ -15,9 +15,22 @@ export function JobCard({ job, onClick }: JobCardProps) {
     }),
   }));
 
-  // Safely convert dateSubmitted and dateOfInterview to Date objects if they exist
-  const submittedDate = job.dateSubmitted ? new Date(job.dateSubmitted) : null;
-  const interviewDate = job.dateOfInterview ? new Date(job.dateOfInterview) : null;
+  const formatDate = (date: Date | null | undefined): string => {
+    if (!date) {
+      return "";
+    }
+
+    if (!(date instanceof Date)) {
+      console.error("Invalid date object:", date);
+      return "";
+    }
+
+    const d = new Date(date.getTime() + date.getTimezoneOffset() * 60000);
+    const year = d.getFullYear();
+    const month = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  };
 
   return (
     <div
@@ -30,15 +43,15 @@ export function JobCard({ job, onClick }: JobCardProps) {
         <h3 className="font-semibold text-gray-900">{job.companyName}</h3>
         <p className="text-sm text-gray-600">{job.jobTitle}</p>
 
-        {submittedDate && (
+        {job.dateSubmitted && (
           <p className="text-xs text-gray-500">
-            Submitted: {submittedDate.toLocaleDateString()}
+            Submitted: {formatDate(job.dateSubmitted)}
           </p>
         )}
 
-        {interviewDate && (
+        {job.dateOfInterview && (
           <p className="text-xs text-gray-500">
-            Interview: {interviewDate.toLocaleDateString()}
+            Interview: {formatDate(job.dateOfInterview)}
           </p>
         )}
 

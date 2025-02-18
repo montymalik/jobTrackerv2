@@ -27,7 +27,15 @@ function HomePage() {
       setError(null);
       const response = await fetch("/api/jobs");
       if (!response.ok) throw new Error("Failed to fetch jobs");
-      const data = await response.json();
+      let data = await response.json();
+
+      // Convert date strings to Date objects
+      data = data.map(job => ({
+        ...job,
+        dateSubmitted: job.dateSubmitted ? new Date(job.dateSubmitted) : null,
+        dateOfInterview: job.dateOfInterview ? new Date(job.dateOfInterview) : null,
+      }));
+
       setJobs(data);
     } catch (error) {
       setError("Failed to load jobs. Please try again.");
@@ -75,6 +83,15 @@ function HomePage() {
       setError(null);
       const formData = new FormData();
       formData.append("status", newStatus);
+
+      // Preserve existing dateSubmitted and dateOfInterview values
+      if (job.dateSubmitted instanceof Date) {
+        formData.append("dateSubmitted", job.dateSubmitted.toISOString());
+      }
+      if (job.dateOfInterview instanceof Date) {
+        formData.append("dateOfInterview", job.dateOfInterview.toISOString());
+      }
+      formData.append("confirmationReceived", String(job.confirmationReceived));
 
       const response = await fetch(`/api/jobs/${job.id}`, {
         method: "PUT",
