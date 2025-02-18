@@ -17,7 +17,7 @@ export function JobForm({ job, onSubmit, onCancel }: JobFormProps) {
     try {
       const form = e.currentTarget;
       const formData = new FormData(form);
-      
+
       // Add status if not present
       if (!formData.get("status")) {
         formData.set("status", "TO_APPLY");
@@ -101,6 +101,54 @@ export function JobForm({ job, onSubmit, onCancel }: JobFormProps) {
           defaultValue={job?.jobDescription || ""}
           rows={4}
           className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-blue-500"
+        />
+      </div>
+
+      <div>
+        <label
+          htmlFor="dateSubmitted"
+          className="block text-sm font-medium text-gray-700"
+        >
+          Date Submitted
+        </label>
+        <input
+          type="date"
+          id="dateSubmitted"
+          name="dateSubmitted"
+          defaultValue={job?.dateSubmitted ? job.dateSubmitted.toISOString().split('T')[0] : ""}
+          className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-blue-500"
+        />
+      </div>
+
+      <div>
+        <label
+          htmlFor="dateOfInterview"
+          className="block text-sm font-medium text-gray-700"
+        >
+          Date of Interview
+        </label>
+        <input
+          type="date"
+          id="dateOfInterview"
+          name="dateOfInterview"
+          defaultValue={job?.dateOfInterview ? job.dateOfInterview.toISOString().split('T')[0] : ""}
+          className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-blue-500"
+        />
+      </div>
+
+      <div>
+        <label
+          htmlFor="confirmationReceived"
+          className="block text-sm font-medium text-gray-700"
+        >
+          Confirmation Received
+        </label>
+        <input
+          type="checkbox"
+          id="confirmationReceived"
+          name="confirmationReceived"
+          defaultChecked={job?.confirmationReceived}
+          className="mt-1 h-5 w-5 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
         />
       </div>
 

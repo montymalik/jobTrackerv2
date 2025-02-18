@@ -19,12 +19,25 @@ export function JobCard({ job, onClick }: JobCardProps) {
     <div
       ref={drag}
       onClick={() => onClick(job)}
-      className={`cursor-pointer rounded-lg bg-white p-4 shadow-sm transition-all hover:shadow-md
+      className={`relative cursor-pointer rounded-lg bg-white p-4 shadow-sm transition-all hover:shadow-md
         ${isDragging ? "opacity-50" : "opacity-100"}`}
     >
       <div className="flex flex-col gap-2">
         <h3 className="font-semibold text-gray-900">{job.companyName}</h3>
         <p className="text-sm text-gray-600">{job.jobTitle}</p>
+
+        {job.dateSubmitted && (
+          <p className="text-xs text-gray-500">
+            Submitted: {job.dateSubmitted.toLocaleDateString()}
+          </p>
+        )}
+
+        {job.dateOfInterview && (
+          <p className="text-xs text-gray-500">
+            Interview: {job.dateOfInterview.toLocaleDateString()}
+          </p>
+        )}
+
         {job.jobUrl && (
           <a
             href={job.jobUrl}
@@ -36,9 +49,7 @@ export function JobCard({ job, onClick }: JobCardProps) {
             View Job Posting
           </a>
         )}
-        {job.hasBeenContacted && (
-          <div className="absolute bottom-2 right-2 h-2 w-2 rounded-full bg-green-500" />
-        )}
+
         {job.files.length > 0 && (
           <div className="mt-2 flex gap-2">
             {job.files.map((file) => (
@@ -52,6 +63,10 @@ export function JobCard({ job, onClick }: JobCardProps) {
           </div>
         )}
       </div>
+
+      {job.confirmationReceived && (
+        <div className="absolute bottom-2 right-2 h-2 w-2 rounded-full bg-green-500" />
+      )}
     </div>
   );
 }
