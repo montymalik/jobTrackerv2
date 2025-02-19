@@ -80,9 +80,15 @@ function HomePage() {
         dateOfInterview: data.dateOfInterview ? new Date(data.dateOfInterview) : null,
       };
 
-      setJobs((prevJobs) =>
-        prevJobs.map((job) => (job.id === updatedJob.id ? updatedJob : job))
-      );
+      if (selectedJob) {
+        // If editing an existing job, update that job in the state.
+        setJobs((prevJobs) =>
+          prevJobs.map((job) => (job.id === updatedJob.id ? updatedJob : job))
+        );
+      } else {
+        // If creating a new job, add it to the beginning of the job list.
+        setJobs((prevJobs) => [updatedJob, ...prevJobs]);
+      }
 
       setIsModalOpen(false);
       setSelectedJob(undefined);
