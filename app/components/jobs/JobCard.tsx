@@ -9,48 +9,42 @@ interface JobCardProps {
 export function JobCard({ job, onClick }: JobCardProps) {
   const [{ isDragging }, drag] = useDrag(() => ({
     type: "JOB_CARD",
-    item: job,
+    // Spread the job data so that the drop target receives the correct object.
+    item: { ...job },
     collect: (monitor) => ({
       isDragging: monitor.isDragging(),
     }),
   }));
 
   const formatDate = (date: Date | null | undefined): string => {
-    if (!date) {
-      return "";
-    }
-
-    if (!(date instanceof Date)) {
-      console.error("Invalid date object:", date);
-      return "";
-    }
-
+    if (!date) return "";
+    // Adjust for timezone and format as YYYY-MM-DD
     const d = new Date(date.getTime() + date.getTimezoneOffset() * 60000);
-    const year = d.getFullYear();
-    const month = String(d.getMonth() + 1).padStart(2, '0');
-    const day = String(d.getDate()).padStart(2, '0');
-    return `${year}-${month}-${day}`;
+    return d.toISOString().split("T")[0];
   };
 
   return (
     <div
       ref={drag}
       onClick={() => onClick(job)}
-      className={`relative cursor-pointer rounded-lg bg-white p-4 shadow-sm transition-all hover:shadow-md
-        ${isDragging ? "opacity-50" : "opacity-100"}`}
+      className={`relative cursor-pointer rounded-xl bg-white dark:bg-gray-800 shadow-md p-4 hover:shadow-lg transition ${
+        isDragging ? "opacity-50" : "opacity-100"
+      }`}
     >
       <div className="flex flex-col gap-2">
-        <h3 className="font-semibold text-gray-900">{job.companyName}</h3>
-        <p className="text-sm text-gray-600">{job.jobTitle}</p>
+        <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
+          {job.companyName}
+        </h3>
+        <p className="text-sm text-gray-600 dark:text-gray-300">{job.jobTitle}</p>
 
         {job.dateSubmitted && (
-          <p className="text-xs text-gray-500">
+          <p className="text-xs text-gray-500 dark:text-gray-400">
             Submitted: {formatDate(job.dateSubmitted)}
           </p>
         )}
 
         {job.dateOfInterview && (
-          <p className="text-xs text-gray-500">
+          <p className="text-xs text-gray-500 dark:text-gray-400">
             Interview: {formatDate(job.dateOfInterview)}
           </p>
         )}
@@ -72,7 +66,7 @@ export function JobCard({ job, onClick }: JobCardProps) {
             {job.files.map((file) => (
               <span
                 key={file.id}
-                className="rounded-full bg-gray-100 px-2 py-1 text-xs text-gray-600"
+                className="rounded-full bg-gray-100 dark:bg-gray-700 px-2 py-1 text-xs text-gray-600 dark:text-gray-300"
               >
                 {file.fileName}
               </span>

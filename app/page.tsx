@@ -9,6 +9,7 @@ import { JobForm } from "./components/jobs/JobForm";
 import { LoadingSpinner } from "./components/ui/LoadingSpinner";
 import { ErrorMessage } from "./components/ui/ErrorMessage";
 import { JobApplication, ApplicationStatus } from "./lib/types";
+import DarkModeToggle from "./components/ui/DarkModeToggle";
 
 function HomePage() {
   const [jobs, setJobs] = useState<JobApplication[]>([]);
@@ -49,8 +50,7 @@ function HomePage() {
       setError(null);
       console.log("Submitting Form Data:", Object.fromEntries(formData.entries()));
 
-      // If editing a job, preserve its current status so that updating confirmation
-      // does not inadvertently change the column.
+      // When editing a job, preserve its current status.
       if (selectedJob) {
         formData.set("status", selectedJob.status);
       }
@@ -100,8 +100,7 @@ function HomePage() {
       const existingJobResponse = await fetch(`/api/jobs/${job.id}`, { method: "GET" });
       const existingJobData = await existingJobResponse.json();
 
-      // Build formData preserving existing date and confirmation values.
-      // Removed the check that prevented drop when confirmationReceived is true.
+      // Build formData preserving existing date and confirmation values
       const formData = new FormData();
       formData.append("status", newStatus);
       if (existingJobData.dateSubmitted) {
@@ -163,20 +162,23 @@ function HomePage() {
 
   return (
     <DndProvider backend={HTML5Backend}>
-      <div className="min-h-screen bg-gray-100 p-8">
+      <div className="min-h-screen bg-gray-100 dark:bg-gray-900 p-8 transition-colors">
         <div className="mb-6 flex items-center justify-between">
-          <h1 className="text-2xl font-bold text-gray-900">
+          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
             Job Application Tracker
           </h1>
-          <button
-            onClick={() => {
-              setSelectedJob(undefined);
-              setIsModalOpen(true);
-            }}
-            className="rounded-md bg-blue-600 px-4 py-2 text-white hover:bg-blue-700"
-          >
-            Add New Job
-          </button>
+          <div className="flex items-center gap-4">
+            <DarkModeToggle />
+            <button
+              onClick={() => {
+                setSelectedJob(undefined);
+                setIsModalOpen(true);
+              }}
+              className="rounded-md bg-blue-600 px-4 py-2 text-white hover:bg-blue-700 transition"
+            >
+              Add New Job
+            </button>
+          </div>
         </div>
 
         {error && (
