@@ -96,21 +96,14 @@ function HomePage() {
     try {
       setError(null);
 
-      // First, fetch the latest job data using GET to get accurate values
+      // Fetch the latest job data using GET
       const existingJobResponse = await fetch(`/api/jobs/${job.id}`, { method: "GET" });
       const existingJobData = await existingJobResponse.json();
 
-      // If the confirmation has been received and the newStatus differs, do not allow a column change.
-      if (existingJobData.confirmationReceived === true && newStatus !== existingJobData.status) {
-        console.log("Drop rejected: card is confirmed so its column cannot be changed.");
-        return; // Early exit: do not update status.
-      }
-
-      // Build formData preserving existing date and confirmation values
+      // Build formData preserving existing date and confirmation values.
+      // Removed the check that prevented drop when confirmationReceived is true.
       const formData = new FormData();
       formData.append("status", newStatus);
-
-      // Preserve existing dateSubmitted and dateOfInterview values from existingJobData.
       if (existingJobData.dateSubmitted) {
         formData.append("dateSubmitted", existingJobData.dateSubmitted);
       }
@@ -127,7 +120,6 @@ function HomePage() {
       const responseText = await response.text();
       console.log("Response Text:", responseText);
 
-      // If the response status indicates an error, try to extract an error message.
       if (!response.ok) {
         if (!responseText.trim()) {
           throw new Error(`Server responded with status ${response.status} but no error message.`);
@@ -142,7 +134,6 @@ function HomePage() {
         }
       }
 
-      // For a successful response, only parse JSON if there is content.
       if (responseText.trim()) {
         const data = JSON.parse(responseText);
         console.log("Updated Job Data:", data);
