@@ -1,16 +1,22 @@
 import { createClient } from "webdav";
 
-const client = createClient(process.env.NEXTCLOUD_URL!, {
-  username: process.env.NEXTCLOUD_USERNAME!,
-  password: process.env.NEXTCLOUD_PASSWORD!,
+console.log("NEXTCLOUD_URL:", process.env.NEXTCLOUD_URL);
+console.log("NEXTCLOUD_USERNAME:", process.env.NEXTCLOUD_USERNAME ? "Loaded" : "Not set");
+
+if (!process.env.NEXTCLOUD_URL || !process.env.NEXTCLOUD_USERNAME || !process.env.NEXTCLOUD_PASSWORD) {
+  throw new Error("Missing WebDAV environment variables");
+}
+
+const client = createClient(process.env.NEXTCLOUD_URL, {
+  username: process.env.NEXTCLOUD_USERNAME,
+  password: process.env.NEXTCLOUD_PASSWORD,
 });
 
 export const webdavClient = client;
 
-export async function uploadFile(file: File, path: string) {
+export async function uploadFile(fileBuffer: Buffer, path: string) {
   try {
-    const buffer = Buffer.from(await file.arrayBuffer());
-    await webdavClient.putFileContents(path, buffer);
+    await webdavClient.putFileContents(path, fileBuffer);
     return path;
   } catch (error) {
     console.error("Error uploading file:", error);
