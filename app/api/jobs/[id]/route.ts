@@ -66,13 +66,13 @@ export async function PUT(
     };
 
     if (dateSubmitted !== null && dateSubmitted !== undefined) {
-      jobData.dateSubmitted = dateSubmitted.trim() !== "" ? new Date(dateSubmitted) : null;
+      jobData.dateSubmitted = dateSubmitted === "" ? null : new Date(dateSubmitted);
     } else {
       jobData.dateSubmitted = existingJob.dateSubmitted;
     }
 
     if (dateOfInterview !== null && dateOfInterview !== undefined) {
-      jobData.dateOfInterview = dateOfInterview && dateOfInterview.trim() !== "" ? new Date(dateOfInterview) : null;
+      jobData.dateOfInterview = dateOfInterview === "" ? null : new Date(dateOfInterview);
     } else {
       jobData.dateOfInterview = existingJob.dateOfInterview;
     }
@@ -104,10 +104,12 @@ export async function PUT(
       }
     }
 
-    return NextResponse.json(
-      { error: "Failed to update job status", details: message },
-      { status: 500 }
-    );
+    return new NextResponse(JSON.stringify({ error: "Failed to update job status", details: message }), {
+      status: 500,
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    });
   }
 }
 
