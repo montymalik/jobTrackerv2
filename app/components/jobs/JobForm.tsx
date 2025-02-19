@@ -1,5 +1,5 @@
 import { JobApplication } from "@/app/lib/types";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 
 interface JobFormProps {
   job?: JobApplication;
@@ -10,6 +10,13 @@ interface JobFormProps {
 export function JobForm({ job, onSubmit, onCancel }: JobFormProps) {
   const [files, setFiles] = useState<File[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  // Use controlled state for the checkbox
+  const [confirmationChecked, setConfirmationChecked] = useState(job?.confirmationReceived || false);
+
+  // Update the checkbox state if the job prop changes
+  useEffect(() => {
+    setConfirmationChecked(job?.confirmationReceived || false);
+  }, [job]);
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -21,7 +28,10 @@ export function JobForm({ job, onSubmit, onCancel }: JobFormProps) {
       // Log the form data for debugging
       console.log("Form Data to Submit:", Object.fromEntries(formData.entries()));
 
-      // Add status if not present
+      // Ensure the checkbox value is explicitly set from state
+      formData.set("confirmationReceived", String(confirmationChecked));
+
+      // Add status if not present (will be overwritten in edit mode)
       if (!formData.get("status")) {
         formData.set("status", "TO_APPLY");
       }
@@ -168,7 +178,8 @@ export function JobForm({ job, onSubmit, onCancel }: JobFormProps) {
           type="checkbox"
           id="confirmationReceived"
           name="confirmationReceived"
-          defaultChecked={job?.confirmationReceived}
+          checked={confirmationChecked}
+          onChange={() => setConfirmationChecked(prev => !prev)}
           className="mt-1 h-5 w-5 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
         />
       </div>

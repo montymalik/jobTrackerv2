@@ -30,12 +30,11 @@ function HomePage() {
       let data = await response.json();
 
       // Convert date strings to Date objects
-      data = data.map(job => ({
+      data = data.map((job: any) => ({
         ...job,
         dateSubmitted: job.dateSubmitted ? new Date(job.dateSubmitted) : null,
         dateOfInterview: job.dateOfInterview ? new Date(job.dateOfInterview) : null,
       }));
-
       setJobs(data);
     } catch (error) {
       setError("Failed to load jobs. Please try again.");
@@ -50,6 +49,12 @@ function HomePage() {
       setError(null);
       console.log("Submitting Form Data:", Object.fromEntries(formData.entries()));
 
+      // If editing a job, preserve its current status so that updating confirmation
+      // does not inadvertently change the column.
+      if (selectedJob) {
+        formData.set("status", selectedJob.status);
+      }
+
       const response = await fetch(
         selectedJob ? `/api/jobs/${selectedJob.id}` : "/api/jobs",
         {
@@ -62,14 +67,23 @@ function HomePage() {
       console.log("Response Text:", responseText);
 
       const data = JSON.parse(responseText);
-
       if (!response.ok) {
         throw new Error(data.error || "Failed to save job");
       }
 
       console.log("Job Saved Successfully:", data);
 
-      await fetchJobs();
+      // Convert any date strings to Date objects before updating local state.
+      const updatedJob: JobApplication = {
+        ...data,
+        dateSubmitted: data.dateSubmitted ? new Date(data.dateSubmitted) : null,
+        dateOfInterview: data.dateOfInterview ? new Date(data.dateOfInterview) : null,
+      };
+
+      setJobs((prevJobs) =>
+        prevJobs.map((job) => (job.id === updatedJob.id ? updatedJob : job))
+      );
+
       setIsModalOpen(false);
       setSelectedJob(undefined);
     } catch (error) {
@@ -81,32 +95,45 @@ function HomePage() {
   const handleDropJob = async (job: JobApplication, newStatus: ApplicationStatus) => {
     try {
       setError(null);
+
+      // First, fetch the latest job data using GET to get accurate values
+      const existingJobResponse = await fetch(`/api/jobs/${job.id}`, { method: "GET" });
+      const existingJobData = await existingJobResponse.json();
+
+      // If the confirmation has been received and the newStatus differs, do not allow a column change.
+      if (existingJobData.confirmationReceived === true && newStatus !== existingJobData.status) {
+        console.log("Drop rejected: card is confirmed so its column cannot be changed.");
+        return; // Early exit: do not update status.
+      }
+
+      // Build formData preserving existing date and confirmation values
       const formData = new FormData();
       formData.append("status", newStatus);
 
-      // Preserve existing dateSubmitted and dateOfInterview values
-      if (job.dateSubmitted instanceof Date) {
-        formData.append("dateSubmitted", job.dateSubmitted.toISOString());
+      // Preserve existing dateSubmitted and dateOfInterview values from existingJobData.
+      if (existingJobData.dateSubmitted) {
+        formData.append("dateSubmitted", existingJobData.dateSubmitted);
       }
-      if (job.dateOfInterview instanceof Date) {
-        formData.append("dateOfInterview", job.dateOfInterview.toISOString());
+      if (existingJobData.dateOfInterview) {
+        formData.append("dateOfInterview", existingJobData.dateOfInterview);
       }
-      formData.append("confirmationReceived", String(job.confirmationReceived));
+      formData.append("confirmationReceived", String(existingJobData.confirmationReceived));
 
       const response = await fetch(`/api/jobs/${job.id}`, {
         method: "PUT",
         body: formData,
       });
 
-      const responseText = await response.text(); // Read the response as text
-      console.log("Response Text:", responseText); // Log the response text
+      const responseText = await response.text();
+      console.log("Response Text:", responseText);
 
+      // If the response status indicates an error, try to extract an error message.
       if (!response.ok) {
         if (!responseText.trim()) {
           throw new Error(`Server responded with status ${response.status} but no error message.`);
         }
         try {
-          const errorData = JSON.parse(responseText); // Try to parse the response as JSON
+          const errorData = JSON.parse(responseText);
           throw new Error(errorData.error || "Failed to update status");
         } catch (jsonError) {
           console.error("JSON Parse Error:", jsonError);
@@ -115,19 +142,17 @@ function HomePage() {
         }
       }
 
-      // For a successful response, ensure there's some content to parse
-      if (!responseText.trim()) {
-        throw new Error("Empty response from server");
+      // For a successful response, only parse JSON if there is content.
+      if (responseText.trim()) {
+        const data = JSON.parse(responseText);
+        console.log("Updated Job Data:", data);
+      } else {
+        console.warn("Empty response from server; assuming success.");
       }
-
-      const data = JSON.parse(responseText);
-      console.log("Updated Job Data:", data);
 
       await fetchJobs();
     } catch (error) {
-      setError(
-        error instanceof Error ? error.message : "Failed to update job status"
-      );
+      setError(error instanceof Error ? error.message : "Failed to update job status");
       console.error("Error updating status:", error);
     }
   };
