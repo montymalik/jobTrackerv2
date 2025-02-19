@@ -37,8 +37,8 @@ export async function POST(request: Request) {
       jobUrl: formData.get("jobUrl") as string,
       status: (formData.get("status") as "TO_APPLY" | "APPLIED" | "INTERVIEW_SCHEDULED") || "TO_APPLY",
       hasBeenContacted: false,
-      dateSubmitted: formData.get("dateSubmitted") ? new Date(formData.get("dateSubmitted") as string) : null,
-      dateOfInterview: formData.get("dateOfInterview") ? new Date(formData.get("dateOfInterview") as string) : null,
+      dateSubmitted: formData.get("dateSubmitted") ? new Date(formData.get("dateSubmitted") as string + "T00:00:00.000Z") : null,
+      dateOfInterview: formData.get("dateOfInterview") ? new Date(formData.get("dateOfInterview") as string + "T00:00:00.000Z") : null,
       confirmationReceived: formData.get("confirmationReceived") === "true",
     };
 

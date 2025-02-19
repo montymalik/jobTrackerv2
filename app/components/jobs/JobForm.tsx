@@ -43,7 +43,11 @@ export function JobForm({ job, onSubmit, onCancel }: JobFormProps) {
     if (!date) {
       return "";
     }
-    return new Date(date).toISOString().split("T")[0];
+    const d = new Date(date);
+    const year = d.getFullYear();
+    const month = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
   };
 
   return (
@@ -130,7 +134,7 @@ export function JobForm({ job, onSubmit, onCancel }: JobFormProps) {
           type="date"
           id="dateSubmitted"
           name="dateSubmitted"
-          defaultValue={formatDate(job?.dateSubmitted)}
+          defaultValue={job?.dateSubmitted ? formatDate(job.dateSubmitted) : ""}
           className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-blue-500"
         />
       </div>
@@ -147,7 +151,7 @@ export function JobForm({ job, onSubmit, onCancel }: JobFormProps) {
           type="date"
           id="dateOfInterview"
           name="dateOfInterview"
-          defaultValue={formatDate(job?.dateOfInterview)}
+          defaultValue={job?.dateOfInterview ? formatDate(job.dateOfInterview) : ""}
           className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-blue-500"
         />
       </div>
