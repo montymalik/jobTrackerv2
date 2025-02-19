@@ -1,24 +1,18 @@
-import type { Config } from "tailwindcss";
-
-const config: Config = {
+/** @type {import('tailwindcss').Config} */
+export default {
   content: [
-    "./pages/**/*.{js,ts,jsx,tsx,mdx}",
-    "./components/**/*.{js,ts,jsx,tsx,mdx}",
-    "./app/**/*.{js,ts,jsx,tsx,mdx}",
+    "./app/**/*.{js,ts,jsx,tsx}",
+    "./components/**/*.{js,ts,jsx,tsx}",
   ],
   theme: {
     extend: {
       colors: {
-        primary: {
-          50: "#f0f9ff",
-          100: "#e0f2fe",
-          // ... add more shades as needed
-        },
+        primary: "#2563EB", // Tailwind blue-600
+        secondary: "#1E293B", // Slate-800
       },
     },
   },
+  darkMode: "class", // Enables dark mode toggle
   plugins: [],
 };
-
-export default config;
 
