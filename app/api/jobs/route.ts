@@ -2,11 +2,17 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/app/lib/prisma";
 import { uploadFile } from "@/app/lib/webdav";
 
-export async function GET() {
+export async function GET(request: Request) {
   try {
-    console.log("GET /api/jobs called"); // Add this log
-    console.log("Prisma Client:", prisma); // Add this log
+    console.log("GET /api/jobs called");
+    const url = new URL(request.url);
+    const archivedParam = url.searchParams.get("archived");
+    console.log("Archived query param:", archivedParam);
+    const filterArchived = archivedParam === "true";
+    console.log("Filter archived jobs:", filterArchived);
+
     const jobs = await prisma.jobApplication.findMany({
+      where: filterArchived ? { status: "ARCHIVED" } : {},
       include: {
         files: true,
       },
@@ -14,14 +20,11 @@ export async function GET() {
         updatedAt: "desc",
       },
     });
-    console.log("Fetched jobs:", jobs); // Add this log
+    console.log("Fetched jobs:", jobs);
     return NextResponse.json(jobs);
   } catch (error) {
     console.error("Failed to fetch jobs:", error);
-    return NextResponse.json(
-      { error: "Failed to fetch jobs" },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: "Failed to fetch jobs" }, { status: 500 });
   }
 }
 
@@ -35,11 +38,21 @@ export async function POST(request: Request) {
       jobTitle: formData.get("jobTitle") as string,
       jobDescription: formData.get("jobDescription") as string,
       jobUrl: formData.get("jobUrl") as string,
-      status: (formData.get("status") as "TO_APPLY" | "APPLIED" | "INTERVIEW_SCHEDULED") || "TO_APPLY",
+      status:
+        (formData.get("status") as
+          | "TO_APPLY"
+          | "APPLIED"
+          | "INTERVIEW_SCHEDULED"
+          | "ARCHIVED") || "TO_APPLY",
       hasBeenContacted: false,
-      dateSubmitted: formData.get("dateSubmitted") ? new Date(formData.get("dateSubmitted") as string + "T00:00:00.000Z") : null,
-      dateOfInterview: formData.get("dateOfInterview") ? new Date(formData.get("dateOfInterview") as string + "T00:00:00.000Z") : null,
+      dateSubmitted: formData.get("dateSubmitted")
+        ? new Date(formData.get("dateSubmitted") as string + "T00:00:00.000Z")
+        : null,
+      dateOfInterview: formData.get("dateOfInterview")
+        ? new Date(formData.get("dateOfInterview") as string + "T00:00:00.000Z")
+        : null,
       confirmationReceived: formData.get("confirmationReceived") === "true",
+      rejectionReceived: formData.get("rejectionReceived") === "true",
     };
 
     // Create job in database
@@ -77,10 +90,43 @@ export async function POST(request: Request) {
     return NextResponse.json(createdJob);
   } catch (error) {
     console.error("Failed to create job:", error);
-    return NextResponse.json(
-      { error: "Failed to create job application" },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: "Failed to create job application" }, { status: 500 });
+  }
+}
+
+export async function PUT(request: Request) {
+  try {
+    // Expect JSON with id, confirmationReceived, and rejectionReceived
+    const { id, confirmationReceived, rejectionReceived } = await request.json();
+
+    if (!id) {
+      return NextResponse.json({ error: "Job ID is required" }, { status: 400 });
+    }
+
+    const updateData: {
+      confirmationReceived: boolean;
+      rejectionReceived: boolean;
+      status?: "ARCHIVED";
+    } = {
+      confirmationReceived,
+      rejectionReceived,
+    };
+
+    // Automatically archive if rejectionReceived is true
+    if (rejectionReceived === true) {
+      updateData.status = "ARCHIVED";
+    }
+
+    const updatedJob = await prisma.jobApplication.update({
+      where: { id },
+      data: updateData,
+      include: { files: true },
+    });
+
+    return NextResponse.json(updatedJob);
+  } catch (error) {
+    console.error("Failed to update job:", error);
+    return NextResponse.json({ error: "Failed to update job" }, { status: 500 });
   }
 }
 

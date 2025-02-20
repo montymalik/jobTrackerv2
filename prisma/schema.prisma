@@ -1,49 +1,50 @@
-generator client {
-  provider = "prisma-client-js"
-}
+// schema.prisma
 
 datasource db {
-  provider = "postgresql"
+  provider = "postgresql" // or your current provider (e.g., mysql, sqlite)
   url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
 }
 
 enum ApplicationStatus {
   TO_APPLY
   APPLIED
   INTERVIEW_SCHEDULED
+  ARCHIVED
 }
 
 model JobApplication {
-  id              String            @id @default(cuid())
-  companyName     String
-  jobTitle        String
-  jobDescription  String?          @db.Text
-  jobUrl          String?
-  status          ApplicationStatus @default(TO_APPLY)
-  dateApplied     DateTime?
-  contactInfo     Json?
-  hasBeenContacted Boolean         @default(false)
-  files           JobFile[]
-  notes           String?          @db.Text
-  createdAt       DateTime         @default(now())
-  updatedAt       DateTime         @updatedAt
-  dateSubmitted   DateTime?
-  dateOfInterview DateTime?
-  confirmationReceived Boolean @default(false)
-
-  @@index([status])
+  id                   String             @id @default(uuid())
+  companyName          String
+  jobTitle             String
+  jobDescription       String?
+  jobUrl               String?
+  status               ApplicationStatus
+  dateApplied          DateTime?
+  contactInfo          Json?
+  hasBeenContacted     Boolean
+  files                JobFile[]
+  notes                String?
+  createdAt            DateTime           @default(now())
+  updatedAt            DateTime           @updatedAt
+  dateSubmitted        DateTime?
+  dateOfInterview      DateTime?
+  confirmationReceived Boolean
+  rejectionReceived    Boolean            @default(false)
 }
 
 model JobFile {
-  id                String         @id @default(cuid())
-  fileName          String
-  fileType          String
-  nextcloudPath     String
-  jobApplication    JobApplication @relation(fields: [jobApplicationId], references: [id], onDelete: Cascade)
-  jobApplicationId  String
-  createdAt         DateTime       @default(now())
-  updatedAt         DateTime       @updatedAt
+  id               String         @id @default(uuid())
+  fileName         String
+  fileType         String
+  nextcloudPath    String
+  jobApplicationId String
+  createdAt        DateTime       @default(now())
+  updatedAt        DateTime       @updatedAt
 
-  @@index([jobApplicationId])
+  jobApplication   JobApplication @relation(fields: [jobApplicationId], references: [id])
 }
 

@@ -1,4 +1,4 @@
-export type ApplicationStatus = "TO_APPLY" | "APPLIED" | "INTERVIEW_SCHEDULED";
+export type ApplicationStatus = "TO_APPLY" | "APPLIED" | "INTERVIEW_SCHEDULED" | "ARCHIVED";
 
 export interface JobApplication {
   id: string;
@@ -17,6 +17,7 @@ export interface JobApplication {
   dateSubmitted?: Date | null;
   dateOfInterview?: Date | null;
   confirmationReceived: boolean;
+  rejectionReceived?: boolean;
 }
 
 export interface JobFile {

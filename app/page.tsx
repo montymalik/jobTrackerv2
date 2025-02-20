@@ -10,6 +10,7 @@ import { LoadingSpinner } from "./components/ui/LoadingSpinner";
 import { ErrorMessage } from "./components/ui/ErrorMessage";
 import { JobApplication, ApplicationStatus } from "./lib/types";
 import DarkModeToggle from "./components/ui/DarkModeToggle";
+import Link from "next/link";
 
 function HomePage() {
   const [jobs, setJobs] = useState<JobApplication[]>([]);
@@ -50,8 +51,8 @@ function HomePage() {
       setError(null);
       console.log("Submitting Form Data:", Object.fromEntries(formData.entries()));
 
-      // When editing a job, preserve its current status.
-      if (selectedJob) {
+      // When editing a job, preserve its current status unless rejection is checked.
+      if (selectedJob && !formData.get("rejectionReceived")) {
         formData.set("status", selectedJob.status);
       }
 
@@ -73,7 +74,7 @@ function HomePage() {
 
       console.log("Job Saved Successfully:", data);
 
-      // Convert any date strings to Date objects before updating local state.
+      // Convert date strings to Date objects before updating local state.
       const updatedJob: JobApplication = {
         ...data,
         dateSubmitted: data.dateSubmitted ? new Date(data.dateSubmitted) : null,
@@ -81,12 +82,11 @@ function HomePage() {
       };
 
       if (selectedJob) {
-        // If editing an existing job, update that job in the state.
         setJobs((prevJobs) =>
           prevJobs.map((job) => (job.id === updatedJob.id ? updatedJob : job))
         );
       } else {
-        // If creating a new job, add it to the beginning of the job list.
+        // Prepend new job so it appears immediately
         setJobs((prevJobs) => [updatedJob, ...prevJobs]);
       }
 
@@ -193,7 +193,7 @@ function HomePage() {
           </div>
         )}
 
-        <div className="grid grid-cols-1 gap-6 md:grid-cols-3">
+        <div className="grid grid-cols-1 gap-6 md:grid-cols-4">
           <Column
             title="To Apply"
             status="TO_APPLY"
@@ -215,6 +215,18 @@ function HomePage() {
             onJobClick={handleJobClick}
             onDropJob={handleDropJob}
           />
+          {/* Hidden Groups Column */}
+          <div className="flex h-full w-full flex-col rounded-lg bg-gray-50 p-4">
+            <h2 className="mb-4 text-lg font-semibold text-gray-900">Hidden Groups</h2>
+            <Link href="/archived-jobs">
+              <div className="flex items-center justify-between cursor-pointer border p-2 rounded hover:bg-gray-100">
+                <span className="text-base font-semibold">Rejections</span>
+                <span className="bg-blue-500 text-white rounded-full px-3 py-1 text-sm">
+                  {jobs.filter((job) => job.status === "ARCHIVED").length}
+                </span>
+              </div>
+            </Link>
+          </div>
         </div>
 
         <Modal
