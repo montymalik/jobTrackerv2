@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/app/lib/prisma";
-import { uploadFile } from "@/app/lib/webdav";
+import { promises as fs } from 'fs';
+import path from 'path';
 
 export async function GET(request: Request) {
   try {
@@ -91,42 +92,6 @@ export async function POST(request: Request) {
   } catch (error) {
     console.error("Failed to create job:", error);
     return NextResponse.json({ error: "Failed to create job application" }, { status: 500 });
-  }
-}
-
-export async function PUT(request: Request) {
-  try {
-    // Expect JSON with id, confirmationReceived, and rejectionReceived
-    const { id, confirmationReceived, rejectionReceived } = await request.json();
-
-    if (!id) {
-      return NextResponse.json({ error: "Job ID is required" }, { status: 400 });
-    }
-
-    const updateData: {
-      confirmationReceived: boolean;
-      rejectionReceived: boolean;
-      status?: "ARCHIVED";
-    } = {
-      confirmationReceived,
-      rejectionReceived,
-    };
-
-    // Automatically archive if rejectionReceived is true
-    if (rejectionReceived === true) {
-      updateData.status = "ARCHIVED";
-    }
-
-    const updatedJob = await prisma.jobApplication.update({
-      where: { id },
-      data: updateData,
-      include: { files: true },
-    });
-
-    return NextResponse.json(updatedJob);
-  } catch (error) {
-    console.error("Failed to update job:", error);
-    return NextResponse.json({ error: "Failed to update job" }, { status: 500 });
   }
 }
 

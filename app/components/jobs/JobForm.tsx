@@ -37,6 +37,7 @@ export function JobForm({ job, onSubmit, onCancel }: JobFormProps) {
       formData.set("confirmationReceived", String(confirmationChecked));
       formData.set("rejectionReceived", String(rejectionChecked));
 
+      // Append each file to formData
       files.forEach((file) => {
         formData.append("files", file);
       });
@@ -66,7 +67,7 @@ export function JobForm({ job, onSubmit, onCancel }: JobFormProps) {
           name="companyName"
           defaultValue={job?.companyName}
           required
-          className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm"
+          className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-blue-500"
         />
       </div>
 
@@ -79,7 +80,7 @@ export function JobForm({ job, onSubmit, onCancel }: JobFormProps) {
           name="jobTitle"
           defaultValue={job?.jobTitle}
           required
-          className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm"
+          className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-blue-500"
         />
       </div>
 
@@ -91,7 +92,7 @@ export function JobForm({ job, onSubmit, onCancel }: JobFormProps) {
           id="jobUrl"
           name="jobUrl"
           defaultValue={job?.jobUrl || ""}
-          className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm"
+          className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-blue-500"
         />
       </div>
 
@@ -103,7 +104,7 @@ export function JobForm({ job, onSubmit, onCancel }: JobFormProps) {
           name="jobDescription"
           defaultValue={job?.jobDescription || ""}
           rows={4}
-          className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm"
+          className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-blue-500"
         />
       </div>
 
@@ -115,7 +116,7 @@ export function JobForm({ job, onSubmit, onCancel }: JobFormProps) {
           id="dateSubmitted"
           name="dateSubmitted"
           defaultValue={job?.dateSubmitted ? formatDate(job.dateSubmitted) : ""}
-          className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm"
+          className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-blue-500"
         />
       </div>
 
@@ -127,7 +128,7 @@ export function JobForm({ job, onSubmit, onCancel }: JobFormProps) {
           id="dateOfInterview"
           name="dateOfInterview"
           defaultValue={job?.dateOfInterview ? formatDate(job.dateOfInterview) : ""}
-          className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm"
+          className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-blue-500"
         />
       </div>
 
@@ -167,6 +168,29 @@ export function JobForm({ job, onSubmit, onCancel }: JobFormProps) {
           className="mt-1 block w-full text-sm text-gray-500"
         />
       </div>
+
+      {/* Display File Links */}
+      {job?.files && job.files.length > 0 && (
+        <div className="mt-4">
+          <p className="block text-sm font-medium text-gray-700">
+            Uploaded Files:
+          </p>
+          <ul className="list-disc pl-5">
+            {job.files.map((file) => (
+              <li key={file.id} className="text-sm text-gray-500">
+                <a
+                  href={file.nextcloudPath}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-blue-600 hover:text-blue-800"
+                >
+                  {file.fileName}
+                </a>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
 
       {/* Buttons */}
       <div className="mt-4 flex justify-end gap-2">

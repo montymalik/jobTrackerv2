@@ -25,15 +25,15 @@ model JobApplication {
   status               ApplicationStatus
   dateApplied          DateTime?
   contactInfo          Json?
-  hasBeenContacted     Boolean
+  hasBeenContacted     Boolean           @default(false)
   files                JobFile[]
   notes                String?
   createdAt            DateTime           @default(now())
   updatedAt            DateTime           @updatedAt
   dateSubmitted        DateTime?
   dateOfInterview      DateTime?
-  confirmationReceived Boolean
-  rejectionReceived    Boolean            @default(false)
+  confirmationReceived Boolean           @default(false)
+  rejectionReceived    Boolean           @default(false)
 }
 
 model JobFile {
@@ -45,6 +45,6 @@ model JobFile {
   createdAt        DateTime       @default(now())
   updatedAt        DateTime       @updatedAt
 
-  jobApplication   JobApplication @relation(fields: [jobApplicationId], references: [id])
+  jobApplication   JobApplication @relation(fields: [jobApplicationId], references: [id], onDelete: Cascade)
 }
 

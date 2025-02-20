@@ -1,54 +1,19 @@
+export const dynamic = "force-dynamic"; // if necessary
+
 import { NextResponse } from "next/server";
 import { prisma } from "@/app/lib/prisma";
 import { ApplicationStatus } from "@/app/lib/types";
-
-// Helper to parse dates
-const parseDate = (dateStr: string | null, fallback: Date | null) => {
-  if (!dateStr) return fallback;
-  return new Date(dateStr.includes("T") ? dateStr : dateStr + "T00:00:00.000Z");
-};
-
-export async function GET(
-  request: Request,
-  { params }: { params: { id: string } }
-) {
-  try {
-    const { id } = params;
-    if (!id) {
-      return NextResponse.json(
-        { error: "Job ID is required" },
-        { status: 400 }
-      );
-    }
-
-    const job = await prisma.jobApplication.findUnique({
-      where: { id },
-      include: { files: true },
-    });
-
-    if (!job) {
-      return NextResponse.json(
-        { error: "Job application not found" },
-        { status: 404 }
-      );
-    }
-
-    return NextResponse.json(job);
-  } catch (error) {
-    console.error("Error fetching job:", error);
-    return NextResponse.json(
-      { error: "Error fetching job" },
-      { status: 500 }
-    );
-  }
-}
+import { promises as fs } from 'fs';
+import path from 'path';
 
 export async function PUT(
   request: Request,
   { params }: { params: { id: string } }
 ) {
   try {
+    // Await or destructure the id from params (make sure this works for your Next.js version)
     const { id } = params;
+
     if (!id) {
       return NextResponse.json(
         { error: "Job ID is required" },
@@ -57,9 +22,11 @@ export async function PUT(
     }
 
     const formData = await request.formData();
+
+    // Log the form data for debugging
     console.log("Form Data Received:", Object.fromEntries(formData.entries()));
 
-    // Extract values from formData
+    // Extract all the values from the form data
     const companyName = formData.get("companyName") as string;
     const jobTitle = formData.get("jobTitle") as string;
     const jobDescription = formData.get("jobDescription") as string;
@@ -69,9 +36,10 @@ export async function PUT(
     const dateOfInterview = formData.get("dateOfInterview") as string | null;
     const confirmationReceived = formData.get("confirmationReceived") === "true";
 
-    // Fetch the existing job from the database
+    // Fetch the existing job data from the database
     const existingJob = await prisma.jobApplication.findUnique({
       where: { id },
+      include: { files: true },
     });
 
     if (!existingJob) {
@@ -81,7 +49,7 @@ export async function PUT(
       );
     }
 
-    // Prepare the job data for update, using the helper for dates
+    // Prepare the job data for the update
     const jobData: {
       companyName?: string;
       jobTitle?: string;
@@ -97,29 +65,63 @@ export async function PUT(
       jobDescription: jobDescription || existingJob.jobDescription,
       jobUrl: jobUrl || existingJob.jobUrl,
       status: status || existingJob.status,
-      dateSubmitted: parseDate(dateSubmitted, existingJob.dateSubmitted),
-      dateOfInterview: parseDate(dateOfInterview, existingJob.dateOfInterview),
-      confirmationReceived:
-        confirmationReceived !== undefined ? confirmationReceived : existingJob.confirmationReceived,
+      dateSubmitted: dateSubmitted ? new Date(dateSubmitted + "T00:00:00.000Z") : existingJob.dateSubmitted,
+      dateOfInterview: dateOfInterview ? new Date(dateOfInterview + "T00:00:00.000Z") : existingJob.dateOfInterview,
+      confirmationReceived: confirmationReceived !== undefined ? confirmationReceived : existingJob.confirmationReceived,
     };
 
     console.log("Job Data to Update:", jobData);
 
-    // Update the job in the database
+    // Update the job in the database, including the related files if needed
     const job = await prisma.jobApplication.update({
       where: { id },
       data: jobData,
       include: { files: true },
     });
 
-    console.log("Updated Job:", job);
-    return NextResponse.json(job);
+    // Handle file uploads
+    const files = formData.getAll("files") as File[];
+    const filePaths = [];
+    if (files.length > 0) {
+      const uploadDir = path.join(process.cwd(), 'public', 'uploads', job.id);
+      await fs.mkdir(uploadDir, { recursive: true });
+
+      for (const file of files) {
+        if (file.size > 0) {
+          const buffer = Buffer.from(await file.arrayBuffer());
+          const filePath = path.join(uploadDir, file.name);
+          await fs.writeFile(filePath, buffer);
+          filePaths.push(`/uploads/${job.id}/${file.name}`);
+        }
+      }
+    }
+
+    // Update job with file paths
+    const updatedJob = await prisma.jobApplication.update({
+      where: { id },
+      data: {
+        files: {
+          create: filePaths.map(filePath => ({
+            fileName: path.basename(filePath),
+            fileType: path.extname(filePath),
+            nextcloudPath: filePath, // Use filePath as nextcloudPath
+          })),
+        },
+      },
+      include: {
+        files: true,
+      },
+    });
+
+    console.log("Updated Job:", updatedJob);
+
+    return NextResponse.json(updatedJob);
   } catch (error: any) {
     console.error("Failed to update job status:", error);
     let message = "Unknown error";
     if (error instanceof Error) {
       message = error.message;
-    } else if (typeof error === "string") {
+    } else if (typeof error === 'string') {
       message = error;
     } else {
       try {
