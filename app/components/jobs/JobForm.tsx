@@ -10,11 +10,9 @@ interface JobFormProps {
 export function JobForm({ job, onSubmit, onCancel }: JobFormProps) {
   const [files, setFiles] = useState<File[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  // Controlled state for both checkboxes
   const [confirmationChecked, setConfirmationChecked] = useState(job?.confirmationReceived || false);
   const [rejectionChecked, setRejectionChecked] = useState(job?.rejectionReceived || false);
 
-  // Update checkbox states if the job prop changes
   useEffect(() => {
     setConfirmationChecked(job?.confirmationReceived || false);
     setRejectionChecked(job?.rejectionReceived || false);
@@ -27,22 +25,18 @@ export function JobForm({ job, onSubmit, onCancel }: JobFormProps) {
       const form = e.currentTarget;
       const formData = new FormData(form);
 
-      // Log the form data for debugging
       console.log("Form Data to Submit:", Object.fromEntries(formData.entries()));
 
-      // Set the status: if rejection is checked, archive the job;
-      // otherwise, if no status is set, default to "TO_APPLY"
+      // Preserve existing status unless rejection is checked
       if (rejectionChecked) {
         formData.set("status", "ARCHIVED");
-      } else if (!formData.get("status")) {
-        formData.set("status", "TO_APPLY");
+      } else if (!formData.get("status") && job?.status) {
+        formData.set("status", job.status);
       }
 
-      // Set both checkbox values into the FormData
       formData.set("confirmationReceived", String(confirmationChecked));
       formData.set("rejectionReceived", String(rejectionChecked));
 
-      // Append each file to formData
       files.forEach((file) => {
         formData.append("files", file);
       });
@@ -58,19 +52,14 @@ export function JobForm({ job, onSubmit, onCancel }: JobFormProps) {
   const formatDate = (date: Date | null | undefined): string => {
     if (!date) return "";
     const d = new Date(date);
-    const year = d.getFullYear();
-    const month = String(d.getMonth() + 1).padStart(2, "0");
-    const day = String(d.getDate()).padStart(2, "0");
-    return `${year}-${month}-${day}`;
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
   };
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
       {/* Company Name */}
       <div>
-        <label htmlFor="companyName" className="block text-sm font-medium text-gray-700">
-          Company Name
-        </label>
+        <label htmlFor="companyName" className="block text-sm font-medium text-gray-700">Company Name</label>
         <input
           type="text"
           id="companyName"
@@ -83,9 +72,7 @@ export function JobForm({ job, onSubmit, onCancel }: JobFormProps) {
 
       {/* Job Title */}
       <div>
-        <label htmlFor="jobTitle" className="block text-sm font-medium text-gray-700">
-          Job Title
-        </label>
+        <label htmlFor="jobTitle" className="block text-sm font-medium text-gray-700">Job Title</label>
         <input
           type="text"
           id="jobTitle"
@@ -98,9 +85,7 @@ export function JobForm({ job, onSubmit, onCancel }: JobFormProps) {
 
       {/* Job URL */}
       <div>
-        <label htmlFor="jobUrl" className="block text-sm font-medium text-gray-700">
-          Job URL
-        </label>
+        <label htmlFor="jobUrl" className="block text-sm font-medium text-gray-700">Job URL</label>
         <input
           type="url"
           id="jobUrl"
@@ -112,9 +97,7 @@ export function JobForm({ job, onSubmit, onCancel }: JobFormProps) {
 
       {/* Job Description */}
       <div>
-        <label htmlFor="jobDescription" className="block text-sm font-medium text-gray-700">
-          Job Description
-        </label>
+        <label htmlFor="jobDescription" className="block text-sm font-medium text-gray-700">Job Description</label>
         <textarea
           id="jobDescription"
           name="jobDescription"
@@ -126,9 +109,7 @@ export function JobForm({ job, onSubmit, onCancel }: JobFormProps) {
 
       {/* Date Submitted */}
       <div>
-        <label htmlFor="dateSubmitted" className="block text-sm font-medium text-gray-700">
-          Date Submitted
-        </label>
+        <label htmlFor="dateSubmitted" className="block text-sm font-medium text-gray-700">Date Submitted</label>
         <input
           type="date"
           id="dateSubmitted"
@@ -140,9 +121,7 @@ export function JobForm({ job, onSubmit, onCancel }: JobFormProps) {
 
       {/* Date of Interview */}
       <div>
-        <label htmlFor="dateOfInterview" className="block text-sm font-medium text-gray-700">
-          Date of Interview
-        </label>
+        <label htmlFor="dateOfInterview" className="block text-sm font-medium text-gray-700">Date of Interview</label>
         <input
           type="date"
           id="dateOfInterview"
@@ -154,9 +133,7 @@ export function JobForm({ job, onSubmit, onCancel }: JobFormProps) {
 
       {/* Confirmation Received Checkbox */}
       <div>
-        <label htmlFor="confirmationReceived" className="block text-sm font-medium text-gray-700">
-          Confirmation Received
-        </label>
+        <label htmlFor="confirmationReceived" className="block text-sm font-medium text-gray-700">Confirmation Received</label>
         <input
           type="checkbox"
           id="confirmationReceived"
@@ -169,9 +146,7 @@ export function JobForm({ job, onSubmit, onCancel }: JobFormProps) {
 
       {/* Rejection Received Checkbox */}
       <div>
-        <label htmlFor="rejectionReceived" className="block text-sm font-medium text-gray-700">
-          Rejection Received
-        </label>
+        <label htmlFor="rejectionReceived" className="block text-sm font-medium text-gray-700">Rejection Received</label>
         <input
           type="checkbox"
           id="rejectionReceived"
@@ -184,9 +159,7 @@ export function JobForm({ job, onSubmit, onCancel }: JobFormProps) {
 
       {/* File Upload */}
       <div>
-        <label className="block text-sm font-medium text-gray-700">
-          Upload Files
-        </label>
+        <label className="block text-sm font-medium text-gray-700">Upload Files</label>
         <input
           type="file"
           multiple
