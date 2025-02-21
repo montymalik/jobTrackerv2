@@ -48,16 +48,10 @@ function HomePage() {
   const handleDropJob = async (job: JobApplication, newStatus: ApplicationStatus) => {
     try {
       setError(null);
-      
       const response = await fetch(`/api/jobs/${job.id}`);
       if (!response.ok) throw new Error("Failed to fetch job details");
       const existingJobData = await response.json();
-      
-      if (existingJobData.confirmationReceived && newStatus !== existingJobData.status) {
-        console.log("Drop rejected: card is confirmed so its column cannot be changed.");
-        return;
-      }
-      
+
       const updateResponse = await fetch(`/api/jobs/${job.id}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
@@ -68,12 +62,12 @@ function HomePage() {
           confirmationReceived: existingJobData.confirmationReceived,
         }),
       });
-      
+
       if (!updateResponse.ok) {
         const errorText = await updateResponse.text();
         throw new Error(errorText || `Server responded with status ${updateResponse.status}`);
       }
-      
+
       await fetchJobs();
     } catch (error) {
       setError(error instanceof Error ? error.message : "Failed to update job status");
@@ -86,12 +80,10 @@ function HomePage() {
     setIsModalOpen(true);
   };
 
-  // Handle JobForm submission for update or creation.
   const handleJobSubmit = async (formData: FormData) => {
     try {
       setError(null);
       let response;
-      // If a job is selected, we update it; otherwise, we create a new job.
       if (selectedJob && selectedJob.id) {
         response = await fetch(`/api/jobs/${selectedJob.id}`, {
           method: "PUT",
@@ -154,47 +146,13 @@ function HomePage() {
         )}
 
         <div className="grid grid-cols-1 gap-6 md:grid-cols-4">
-          <Column 
-            title="To Apply" 
-            status="TO_APPLY" 
-            jobs={jobs.filter(job => job.status === "TO_APPLY")} 
-            onJobClick={handleJobClick} 
-            onDropJob={handleDropJob} 
-          />
-          <Column 
-            title="Applied" 
-            status="APPLIED" 
-            jobs={jobs.filter(job => job.status === "APPLIED")} 
-            onJobClick={handleJobClick} 
-            onDropJob={handleDropJob} 
-          />
-          <Column 
-            title="Interview Scheduled" 
-            status="INTERVIEW_SCHEDULED" 
-            jobs={jobs.filter(job => job.status === "INTERVIEW_SCHEDULED")} 
-            onJobClick={handleJobClick} 
-            onDropJob={handleDropJob} 
-          />
-          <div className="flex h-full w-full flex-col rounded-lg bg-gray-50 p-4">
-            <h2 className="mb-4 text-lg font-semibold text-gray-900">Hidden Groups</h2>
-            <Link href="/archived-jobs">
-              <div className="flex items-center justify-between cursor-pointer border p-2 rounded hover:bg-gray-100">
-                <span className="text-base font-semibold">Rejections</span>
-                <span className="bg-blue-500 text-white rounded-full px-3 py-1 text-sm">
-                  {jobs.filter(job => job.status === "ARCHIVED").length}
-                </span>
-              </div>
-            </Link>
-          </div>
+          <Column title="To Apply" status="TO_APPLY" jobs={jobs.filter(job => job.status === "TO_APPLY")} onJobClick={handleJobClick} onDropJob={handleDropJob} />
+          <Column title="Applied" status="APPLIED" jobs={jobs.filter(job => job.status === "APPLIED")} onJobClick={handleJobClick} onDropJob={handleDropJob} />
+          <Column title="Interview Scheduled" status="INTERVIEW_SCHEDULED" jobs={jobs.filter(job => job.status === "INTERVIEW_SCHEDULED")} onJobClick={handleJobClick} onDropJob={handleDropJob} />
         </div>
 
-        {/* Always render Modal and pass `show` prop to control visibility */}
         <Modal show={isModalOpen} onClose={() => setIsModalOpen(false)}>
-          <JobForm 
-            job={selectedJob} 
-            onSubmit={handleJobSubmit} 
-            onCancel={() => setIsModalOpen(false)} 
-          />
+          <JobForm job={selectedJob} onSubmit={handleJobSubmit} onCancel={() => setIsModalOpen(false)} />
         </Modal>
       </div>
     </DndProvider>
