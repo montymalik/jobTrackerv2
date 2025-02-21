@@ -10,8 +10,12 @@ interface JobFormProps {
 export function JobForm({ job, onSubmit, onCancel }: JobFormProps) {
   const [files, setFiles] = useState<File[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [confirmationChecked, setConfirmationChecked] = useState(job?.confirmationReceived || false);
-  const [rejectionChecked, setRejectionChecked] = useState(job?.rejectionReceived || false);
+  const [confirmationChecked, setConfirmationChecked] = useState(
+    job?.confirmationReceived || false
+  );
+  const [rejectionChecked, setRejectionChecked] = useState(
+    job?.rejectionReceived || false
+  );
 
   useEffect(() => {
     setConfirmationChecked(job?.confirmationReceived || false);
@@ -53,136 +57,198 @@ export function JobForm({ job, onSubmit, onCancel }: JobFormProps) {
   const formatDate = (date: Date | null | undefined): string => {
     if (!date) return "";
     const d = new Date(date);
-    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(
+      2,
+      "0"
+    )}-${String(d.getDate()).padStart(2, "0")}`;
   };
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-4">
+    <form
+      onSubmit={handleSubmit}
+      className="space-y-4 rounded-md bg-white p-4 dark:bg-gray-800 dark:text-gray-100"
+    >
       {/* Company Name */}
       <div>
-        <label htmlFor="companyName" className="block text-sm font-medium text-gray-700">Company Name</label>
+        <label
+          htmlFor="companyName"
+          className="block text-sm font-medium text-gray-700 dark:text-gray-300"
+        >
+          Company Name
+        </label>
         <input
           type="text"
           id="companyName"
           name="companyName"
           defaultValue={job?.companyName}
           required
-          className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-blue-500"
+          className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 
+            shadow-sm focus:border-blue-500 focus:outline-none focus:ring-blue-500
+            dark:border-gray-700 dark:bg-gray-700 dark:placeholder-gray-400 dark:text-gray-100"
         />
       </div>
 
       {/* Job Title */}
       <div>
-        <label htmlFor="jobTitle" className="block text-sm font-medium text-gray-700">Job Title</label>
+        <label
+          htmlFor="jobTitle"
+          className="block text-sm font-medium text-gray-700 dark:text-gray-300"
+        >
+          Job Title
+        </label>
         <input
           type="text"
           id="jobTitle"
           name="jobTitle"
           defaultValue={job?.jobTitle}
           required
-          className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-blue-500"
+          className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2
+            shadow-sm focus:border-blue-500 focus:outline-none focus:ring-blue-500
+            dark:border-gray-700 dark:bg-gray-700 dark:placeholder-gray-400 dark:text-gray-100"
         />
       </div>
 
       {/* Job URL */}
       <div>
-        <label htmlFor="jobUrl" className="block text-sm font-medium text-gray-700">Job URL</label>
+        <label
+          htmlFor="jobUrl"
+          className="block text-sm font-medium text-gray-700 dark:text-gray-300"
+        >
+          Job URL
+        </label>
         <input
           type="url"
           id="jobUrl"
           name="jobUrl"
           defaultValue={job?.jobUrl || ""}
-          className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-blue-500"
+          className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2
+            shadow-sm focus:border-blue-500 focus:outline-none focus:ring-blue-500
+            dark:border-gray-700 dark:bg-gray-700 dark:placeholder-gray-400 dark:text-gray-100"
         />
       </div>
 
       {/* Job Description */}
       <div>
-        <label htmlFor="jobDescription" className="block text-sm font-medium text-gray-700">Job Description</label>
+        <label
+          htmlFor="jobDescription"
+          className="block text-sm font-medium text-gray-700 dark:text-gray-300"
+        >
+          Job Description
+        </label>
         <textarea
           id="jobDescription"
           name="jobDescription"
           defaultValue={job?.jobDescription || ""}
           rows={4}
-          className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-blue-500"
+          className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2
+            shadow-sm focus:border-blue-500 focus:outline-none focus:ring-blue-500
+            dark:border-gray-700 dark:bg-gray-700 dark:placeholder-gray-400 dark:text-gray-100"
         />
       </div>
 
       {/* Date Submitted */}
       <div>
-        <label htmlFor="dateSubmitted" className="block text-sm font-medium text-gray-700">Date Submitted</label>
+        <label
+          htmlFor="dateSubmitted"
+          className="block text-sm font-medium text-gray-700 dark:text-gray-300"
+        >
+          Date Submitted
+        </label>
         <input
           type="date"
           id="dateSubmitted"
           name="dateSubmitted"
           defaultValue={job?.dateSubmitted ? formatDate(job.dateSubmitted) : ""}
-          className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-blue-500"
+          className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2
+            shadow-sm focus:border-blue-500 focus:outline-none focus:ring-blue-500
+            dark:border-gray-700 dark:bg-gray-700 dark:placeholder-gray-400 dark:text-gray-100"
         />
       </div>
 
       {/* Date of Interview */}
       <div>
-        <label htmlFor="dateOfInterview" className="block text-sm font-medium text-gray-700">Date of Interview</label>
+        <label
+          htmlFor="dateOfInterview"
+          className="block text-sm font-medium text-gray-700 dark:text-gray-300"
+        >
+          Date of Interview
+        </label>
         <input
           type="date"
           id="dateOfInterview"
           name="dateOfInterview"
           defaultValue={job?.dateOfInterview ? formatDate(job.dateOfInterview) : ""}
-          className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-blue-500"
+          className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2
+            shadow-sm focus:border-blue-500 focus:outline-none focus:ring-blue-500
+            dark:border-gray-700 dark:bg-gray-700 dark:placeholder-gray-400 dark:text-gray-100"
         />
       </div>
 
       {/* Confirmation Received Checkbox */}
       <div>
-        <label htmlFor="confirmationReceived" className="block text-sm font-medium text-gray-700">Confirmation Received</label>
+        <label
+          htmlFor="confirmationReceived"
+          className="block text-sm font-medium text-gray-700 dark:text-gray-300"
+        >
+          Confirmation Received
+        </label>
         <input
           type="checkbox"
           id="confirmationReceived"
           name="confirmationReceived"
           checked={confirmationChecked}
           onChange={(e) => setConfirmationChecked(e.target.checked)}
-          className="mt-1 h-5 w-5 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+          className="mt-1 h-5 w-5 rounded border-gray-300 text-blue-600 focus:ring-blue-500
+            dark:border-gray-700 dark:bg-gray-700"
         />
       </div>
 
       {/* Rejection Received Checkbox */}
       <div>
-        <label htmlFor="rejectionReceived" className="block text-sm font-medium text-gray-700">Rejection Received</label>
+        <label
+          htmlFor="rejectionReceived"
+          className="block text-sm font-medium text-gray-700 dark:text-gray-300"
+        >
+          Rejection Received
+        </label>
         <input
           type="checkbox"
           id="rejectionReceived"
           name="rejectionReceived"
           checked={rejectionChecked}
           onChange={(e) => setRejectionChecked(e.target.checked)}
-          className="mt-1 h-5 w-5 rounded border-gray-300 text-red-600 focus:ring-red-500"
+          className="mt-1 h-5 w-5 rounded border-gray-300 text-red-600 focus:ring-red-500
+            dark:border-gray-700 dark:bg-gray-700"
         />
       </div>
 
       {/* File Upload */}
       <div>
-        <label className="block text-sm font-medium text-gray-700">Upload Files</label>
+        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+          Upload Files
+        </label>
         <input
           type="file"
           multiple
           onChange={(e) => setFiles(Array.from(e.target.files || []))}
-          className="mt-1 block w-full text-sm text-gray-500"
+          className="mt-1 block w-full text-sm text-gray-500 dark:text-gray-300"
         />
       </div>
 
       {/* Display File Links */}
       {job?.files && job.files.length > 0 && (
         <div className="mt-4">
-          <p className="block text-sm font-medium text-gray-700">
+          <p className="block text-sm font-medium text-gray-700 dark:text-gray-300">
             Uploaded Files:
           </p>
           <ul className="list-disc pl-5">
             {job.files.map((file) => (
-              <li key={file.id} className="text-sm text-gray-500">
+              <li key={file.id} className="text-sm text-gray-500 dark:text-gray-300">
                 <a
                   href={file.nextcloudPath}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="text-blue-600 hover:text-blue-800"
+                  className="text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300"
                 >
                   {file.fileName}
                 </a>
@@ -198,7 +264,10 @@ export function JobForm({ job, onSubmit, onCancel }: JobFormProps) {
           type="button"
           onClick={onCancel}
           disabled={isSubmitting}
-          className="rounded-md border border-gray-300 bg-white px-4 py-2 text-sm"
+          className="rounded-md border border-gray-300 dark:border-gray-700
+            bg-white dark:bg-gray-700 px-4 py-2 text-sm
+            text-gray-700 dark:text-gray-200
+            hover:bg-gray-100 dark:hover:bg-gray-600"
         >
           Cancel
         </button>
