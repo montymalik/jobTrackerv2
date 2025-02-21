@@ -145,7 +145,7 @@ function HomePage() {
           </div>
         )}
 
-        <div className="grid grid-cols-1 gap-6 md:grid-cols-4">
+        <div className="grid grid-cols-1 gap-6 md:grid-cols-3">
           <Column title="To Apply" status="TO_APPLY" jobs={jobs.filter(job => job.status === "TO_APPLY")} onJobClick={handleJobClick} onDropJob={handleDropJob} />
           <Column title="Applied" status="APPLIED" jobs={jobs.filter(job => job.status === "APPLIED")} onJobClick={handleJobClick} onDropJob={handleDropJob} />
           <Column title="Interview Scheduled" status="INTERVIEW_SCHEDULED" jobs={jobs.filter(job => job.status === "INTERVIEW_SCHEDULED")} onJobClick={handleJobClick} onDropJob={handleDropJob} />
