@@ -11,7 +11,7 @@ interface JobCardProps {
 }
 
 export function JobCard({ job, onClick, disableDrag = false }: JobCardProps) {
-  // If dragging is disabled, we won't use react-dnd's dragRef.
+  // If dragging is enabled, use the useDrag hook.
   const [{ isDragging }, dragRef] = disableDrag
     ? [{ isDragging: false }, null]
     : useDrag(() => ({
@@ -22,19 +22,19 @@ export function JobCard({ job, onClick, disableDrag = false }: JobCardProps) {
         }),
       }));
 
-  // A small helper for the ref
-  // - If drag is disabled, do nothing
-  // - Otherwise, call dragRef(node)
+  // A callback ref that attaches dragRef if dragging is enabled
   const attachDragRef = (node: HTMLDivElement | null) => {
-    if (!node || !dragRef) return;
-    // react-dnd's "dragRef" is a function that attaches to the node
-    dragRef(node);
+    if (node && dragRef) {
+      dragRef(node);
+    }
   };
 
-  // Format date for display
+  // Updated formatDate function to handle strings and Date objects
   const formatDate = (date: Date | string | null | undefined): string => {
     if (!date) return "";
+    // Convert to Date if it's not already a Date object
     const d = date instanceof Date ? date : new Date(date);
+    // Adjust for timezone and format as YYYY-MM-DD
     const adjusted = new Date(d.getTime() + d.getTimezoneOffset() * 60000);
     const year = adjusted.getFullYear();
     const month = String(adjusted.getMonth() + 1).padStart(2, "0");
@@ -44,7 +44,6 @@ export function JobCard({ job, onClick, disableDrag = false }: JobCardProps) {
 
   return (
     <div
-      // Instead of ref={disableDrag ? null : dragRef}, use a callback ref
       ref={attachDragRef}
       onClick={() => onClick(job)}
       className={`relative cursor-pointer rounded-lg bg-white p-4 shadow-sm transition-all hover:shadow-md ${
@@ -78,23 +77,22 @@ export function JobCard({ job, onClick, disableDrag = false }: JobCardProps) {
             View Job Posting
           </a>
         )}
-
-        {job.files.length > 0 && (
-          <div className="mt-2 flex gap-2">
-            {job.files.map((file) => (
-              <span
-                key={file.id}
-                className="rounded-full bg-gray-100 px-2 py-1 text-xs text-gray-600"
-              >
-                {file.fileName}
-              </span>
-            ))}
-          </div>
-        )}
       </div>
 
-      {job.confirmationReceived && (
-        <div className="absolute bottom-2 right-2 h-2 w-2 rounded-full bg-green-500" />
+      {/* 
+        Bottom-right dots:
+        - If confirmationReceived, show green dot on left
+        - If job.files exist, show purple dot on far right
+      */}
+      {(job.confirmationReceived || job.files.length > 0) && (
+        <div className="absolute bottom-2 right-2 flex items-center gap-1">
+          {job.confirmationReceived && (
+            <div className="h-2 w-2 rounded-full bg-green-500" />
+          )}
+          {job.files.length > 0 && (
+            <div className="h-2 w-2 rounded-full bg-purple-500" />
+          )}
+        </div>
       )}
     </div>
   );
