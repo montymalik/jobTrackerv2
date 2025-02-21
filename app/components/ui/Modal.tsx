@@ -5,15 +5,15 @@ import { Dialog, Transition } from "@headlessui/react";
 import { XMarkIcon } from "@heroicons/react/24/outline";
 
 interface ModalProps {
-  isOpen: boolean;
+  show: boolean;
   onClose: () => void;
   title: string;
   children: React.ReactNode;
 }
 
-export function Modal({ isOpen, onClose, title, children }: ModalProps) {
+export function Modal({ show, onClose, title, children }: ModalProps) {
   return (
-    <Transition.Root show={isOpen} as={Fragment}>
+    <Transition.Root show={show} as={Fragment}>
       <Dialog as="div" className="relative z-50" onClose={onClose}>
         <Transition.Child
           as={Fragment}

@@ -3,17 +3,29 @@ export const dynamic = "force-dynamic"; // if necessary
 import { NextResponse } from "next/server";
 import { prisma } from "@/app/lib/prisma";
 import { ApplicationStatus } from "@/app/lib/types";
-import { promises as fs } from 'fs';
-import path from 'path';
+import { promises as fs } from "fs";
+import path from "path";
 
-export async function PUT(
+interface Params {
+  id: string;
+}
+
+interface Props {
+  params: Params;
+}
+
+// Helper to parse dates
+const parseDate = (dateStr: string | null, fallback: Date | null) => {
+  if (!dateStr) return fallback;
+  return new Date(dateStr.includes("T") ? dateStr : dateStr + "T00:00:00.000Z");
+};
+
+export async function GET(
   request: Request,
-  { params }: { params: { id: string } }
+  context: { params: { id: string } | Promise<{ id: string }> }
 ) {
   try {
-    // Await or destructure the id from params (make sure this works for your Next.js version)
-    const { id } = params;
-
+    const { id } = await context.params;
     if (!id) {
       return NextResponse.json(
         { error: "Job ID is required" },
@@ -21,122 +33,145 @@ export async function PUT(
       );
     }
 
-    const formData = await request.formData();
-
-    // Log the form data for debugging
-    console.log("Form Data Received:", Object.fromEntries(formData.entries()));
-
-    // Extract all the values from the form data
-    const companyName = formData.get("companyName") as string;
-    const jobTitle = formData.get("jobTitle") as string;
-    const jobDescription = formData.get("jobDescription") as string;
-    const jobUrl = formData.get("jobUrl") as string;
-    const status = formData.get("status") as ApplicationStatus;
-    const dateSubmitted = formData.get("dateSubmitted") as string | null;
-    const dateOfInterview = formData.get("dateOfInterview") as string | null;
-    const confirmationReceived = formData.get("confirmationReceived") === "true";
-
-    // Fetch the existing job data from the database
-    const existingJob = await prisma.jobApplication.findUnique({
+    const job = await prisma.jobApplication.findUnique({
       where: { id },
       include: { files: true },
     });
 
-    if (!existingJob) {
+    if (!job) {
       return NextResponse.json(
         { error: "Job application not found" },
         { status: 404 }
       );
     }
 
-    // Prepare the job data for the update
-    const jobData: {
+    return NextResponse.json(job);
+  } catch (error) {
+    console.error("Error fetching job:", error);
+    return NextResponse.json(
+      { error: "Error fetching job" },
+      { status: 500 }
+    );
+  }
+}
+
+export async function PUT(
+  request: Request,
+  context: { params: { id: string } | Promise<{ id: string }> }
+) {
+  try {
+    const { id } = await context.params;
+    if (!id) {
+      console.error("No job ID provided in context");
+      return NextResponse.json({ error: "Job ID is required" }, { status: 400 });
+    }
+
+    const contentType = request.headers.get("content-type") || "";
+    let bodyData: any = {};
+    let uploadedFiles: any[] = [];
+
+    if (contentType.includes("multipart/form-data")) {
+      const formData = await request.formData();
+      for (const [key, value] of formData.entries()) {
+        if (value instanceof File) {
+          const uploadDir = path.join(process.cwd(), "public/uploads");
+          await fs.mkdir(uploadDir, { recursive: true });
+
+          const filePath = path.join(uploadDir, value.name);
+          const fileBuffer = Buffer.from(await value.arrayBuffer());
+          await fs.writeFile(filePath, fileBuffer);
+
+          uploadedFiles.push({ fileName: value.name, fileType: value.type, nextcloudPath: `/uploads/${value.name}` });
+        } else {
+          bodyData[key] = value;
+        }
+      }
+    } else {
+      bodyData = await request.json();
+    }
+
+    console.log("Request body:", bodyData);
+    if (!bodyData || typeof bodyData !== "object") {
+      console.error("Invalid or missing request body:", bodyData);
+      return NextResponse.json({ error: "Invalid request body" }, { status: 400 });
+    }
+
+    const {
+      confirmationReceived,
+      rejectionReceived,
+      status,
+      dateSubmitted,
+      dateOfInterview,
+      companyName,
+      jobTitle,
+      jobDescription,
+      jobUrl,
+    } = bodyData;
+
+    const updateData: {
+      confirmationReceived?: boolean;
+      rejectionReceived?: boolean;
+      status?: ApplicationStatus;
       companyName?: string;
       jobTitle?: string;
       jobDescription?: string;
       jobUrl?: string;
-      status?: ApplicationStatus;
       dateSubmitted?: Date | null;
       dateOfInterview?: Date | null;
-      confirmationReceived?: boolean;
     } = {
-      companyName: companyName || existingJob.companyName,
-      jobTitle: jobTitle || existingJob.jobTitle,
-      jobDescription: jobDescription || existingJob.jobDescription,
-      jobUrl: jobUrl || existingJob.jobUrl,
-      status: status || existingJob.status,
-      dateSubmitted: dateSubmitted ? new Date(dateSubmitted + "T00:00:00.000Z") : existingJob.dateSubmitted,
-      dateOfInterview: dateOfInterview ? new Date(dateOfInterview + "T00:00:00.000Z") : existingJob.dateOfInterview,
-      confirmationReceived: confirmationReceived !== undefined ? confirmationReceived : existingJob.confirmationReceived,
+      confirmationReceived: confirmationReceived === "true" || confirmationReceived === true,
+      rejectionReceived: rejectionReceived === "true" || rejectionReceived === true,
     };
 
-    console.log("Job Data to Update:", jobData);
+    if (updateData.rejectionReceived === true) {
+      updateData.status = "ARCHIVED";
+    }
 
-    // Update the job in the database, including the related files if needed
-    const job = await prisma.jobApplication.update({
+    if (companyName) updateData.companyName = companyName;
+    if (jobTitle) updateData.jobTitle = jobTitle;
+    if (jobDescription) updateData.jobDescription = jobDescription;
+    if (jobUrl) updateData.jobUrl = jobUrl;
+    if (status && updateData.rejectionReceived !== true) updateData.status = status;
+    if (dateSubmitted)
+      updateData.dateSubmitted = parseDate(dateSubmitted, null);
+    if (dateOfInterview)
+      updateData.dateOfInterview = parseDate(dateOfInterview, null);
+
+    console.log("Update data:", updateData);
+
+    const updatedJob = await prisma.jobApplication.update({
       where: { id },
-      data: jobData,
+      data: updateData,
       include: { files: true },
     });
 
-    // Handle file uploads
-    const files = formData.getAll("files") as File[];
-    const filePaths = [];
-    if (files.length > 0) {
-      const uploadDir = path.join(process.cwd(), 'public', 'uploads', job.id);
-      await fs.mkdir(uploadDir, { recursive: true });
-
-      for (const file of files) {
-        if (file.size > 0) {
-          const buffer = Buffer.from(await file.arrayBuffer());
-          const filePath = path.join(uploadDir, file.name);
-          await fs.writeFile(filePath, buffer);
-          filePaths.push(`/uploads/${job.id}/${file.name}`);
-        }
-      }
+    if (uploadedFiles.length > 0) {
+      await prisma.jobFile.createMany({
+        data: uploadedFiles.map(file => ({
+          fileName: file.fileName,
+          fileType: file.fileType,
+          nextcloudPath: file.nextcloudPath,
+          jobApplicationId: id,
+        })),
+      });
     }
 
-    // Update job with file paths
-    const updatedJob = await prisma.jobApplication.update({
+    const finalJob = await prisma.jobApplication.findUnique({
       where: { id },
-      data: {
-        files: {
-          create: filePaths.map(filePath => ({
-            fileName: path.basename(filePath),
-            fileType: path.extname(filePath),
-            nextcloudPath: filePath, // Use filePath as nextcloudPath
-          })),
-        },
-      },
-      include: {
-        files: true,
-      },
+      include: { files: true },
     });
 
-    console.log("Updated Job:", updatedJob);
+    console.log("Updated job from Prisma:", finalJob);
 
-    return NextResponse.json(updatedJob);
-  } catch (error: any) {
-    console.error("Failed to update job status:", error);
-    let message = "Unknown error";
-    if (error instanceof Error) {
-      message = error.message;
-    } else if (typeof error === 'string') {
-      message = error;
-    } else {
-      try {
-        message = JSON.stringify(error);
-      } catch (stringifyError) {
-        message = "Failed to stringify error";
-      }
+    if (!finalJob) {
+      console.error("Prisma update returned null for id:", id);
+      return NextResponse.json({ error: "Updated job is null" }, { status: 500 });
     }
 
-    return new NextResponse(JSON.stringify({ error: "Failed to update job status", details: message }), {
-      status: 500,
-      headers: {
-        'Content-Type': 'application/json',
-      },
-    });
+    return NextResponse.json(finalJob);
+  } catch (error) {
+    console.error("Failed to update job:", error);
+    return NextResponse.json({ error: "Failed to update job" }, { status: 500 });
   }
 }
 

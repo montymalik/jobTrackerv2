@@ -31,7 +31,6 @@ function HomePage() {
       if (!response.ok) throw new Error("Failed to fetch jobs");
       let data = await response.json();
 
-      // Convert date strings to Date objects
       data = data.map((job: any) => ({
         ...job,
         dateSubmitted: job.dateSubmitted ? new Date(job.dateSubmitted) : null,
@@ -46,106 +45,35 @@ function HomePage() {
     }
   };
 
-  const handleSubmit = async (formData: FormData) => {
-    try {
-      setError(null);
-      console.log("Submitting Form Data:", Object.fromEntries(formData.entries()));
-
-      // When editing a job, preserve its current status unless rejection is checked.
-      if (selectedJob && !formData.get("rejectionReceived")) {
-        formData.set("status", selectedJob.status);
-      }
-
-      const response = await fetch(
-        selectedJob ? `/api/jobs/${selectedJob.id}` : "/api/jobs",
-        {
-          method: selectedJob ? "PUT" : "POST",
-          body: formData,
-        }
-      );
-
-      const responseText = await response.text();
-      console.log("Response Text:", responseText);
-
-      const data = JSON.parse(responseText);
-      if (!response.ok) {
-        throw new Error(data.error || "Failed to save job");
-      }
-
-      console.log("Job Saved Successfully:", data);
-
-      // Convert date strings to Date objects before updating local state.
-      const updatedJob: JobApplication = {
-        ...data,
-        dateSubmitted: data.dateSubmitted ? new Date(data.dateSubmitted) : null,
-        dateOfInterview: data.dateOfInterview ? new Date(data.dateOfInterview) : null,
-      };
-
-      if (selectedJob) {
-        setJobs((prevJobs) =>
-          prevJobs.map((job) => (job.id === updatedJob.id ? updatedJob : job))
-        );
-      } else {
-        // Prepend new job so it appears immediately
-        setJobs((prevJobs) => [updatedJob, ...prevJobs]);
-      }
-
-      setIsModalOpen(false);
-      setSelectedJob(undefined);
-    } catch (error) {
-      setError(error instanceof Error ? error.message : "Failed to save job");
-      console.error("Error saving job:", error);
-    }
-  };
-
   const handleDropJob = async (job: JobApplication, newStatus: ApplicationStatus) => {
     try {
       setError(null);
-
-      // Fetch the latest job data using GET
-      const existingJobResponse = await fetch(`/api/jobs/${job.id}`, { method: "GET" });
-      const existingJobData = await existingJobResponse.json();
-
-      // Build formData preserving existing date and confirmation values
-      const formData = new FormData();
-      formData.append("status", newStatus);
-      if (existingJobData.dateSubmitted) {
-        formData.append("dateSubmitted", existingJobData.dateSubmitted);
+      
+      const response = await fetch(`/api/jobs/${job.id}`);
+      if (!response.ok) throw new Error("Failed to fetch job details");
+      const existingJobData = await response.json();
+      
+      if (existingJobData.confirmationReceived && newStatus !== existingJobData.status) {
+        console.log("Drop rejected: card is confirmed so its column cannot be changed.");
+        return;
       }
-      if (existingJobData.dateOfInterview) {
-        formData.append("dateOfInterview", existingJobData.dateOfInterview);
-      }
-      formData.append("confirmationReceived", String(existingJobData.confirmationReceived));
-
-      const response = await fetch(`/api/jobs/${job.id}`, {
+      
+      const updateResponse = await fetch(`/api/jobs/${job.id}`, {
         method: "PUT",
-        body: formData,
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          status: newStatus,
+          dateSubmitted: existingJobData.dateSubmitted,
+          dateOfInterview: existingJobData.dateOfInterview,
+          confirmationReceived: existingJobData.confirmationReceived,
+        }),
       });
-
-      const responseText = await response.text();
-      console.log("Response Text:", responseText);
-
-      if (!response.ok) {
-        if (!responseText.trim()) {
-          throw new Error(`Server responded with status ${response.status} but no error message.`);
-        }
-        try {
-          const errorData = JSON.parse(responseText);
-          throw new Error(errorData.error || "Failed to update status");
-        } catch (jsonError) {
-          console.error("JSON Parse Error:", jsonError);
-          console.error("Raw Response Text:", responseText);
-          throw new Error(`Unexpected response: ${responseText}`);
-        }
+      
+      if (!updateResponse.ok) {
+        const errorText = await updateResponse.text();
+        throw new Error(errorText || `Server responded with status ${updateResponse.status}`);
       }
-
-      if (responseText.trim()) {
-        const data = JSON.parse(responseText);
-        console.log("Updated Job Data:", data);
-      } else {
-        console.warn("Empty response from server; assuming success.");
-      }
-
+      
       await fetchJobs();
     } catch (error) {
       setError(error instanceof Error ? error.message : "Failed to update job status");
@@ -156,6 +84,38 @@ function HomePage() {
   const handleJobClick = (job: JobApplication) => {
     setSelectedJob(job);
     setIsModalOpen(true);
+  };
+
+  // Handle JobForm submission for update or creation.
+  const handleJobSubmit = async (formData: FormData) => {
+    try {
+      setError(null);
+      let response;
+      // If a job is selected, we update it; otherwise, we create a new job.
+      if (selectedJob && selectedJob.id) {
+        response = await fetch(`/api/jobs/${selectedJob.id}`, {
+          method: "PUT",
+          body: formData,
+        });
+      } else {
+        response = await fetch(`/api/jobs`, {
+          method: "POST",
+          body: formData,
+        });
+      }
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(errorText || `Server responded with status ${response.status}`);
+      }
+
+      await fetchJobs();
+      setIsModalOpen(false);
+      setSelectedJob(undefined);
+    } catch (error) {
+      setError(error instanceof Error ? error.message : "Error saving job");
+      console.error("Error submitting job:", error);
+    }
   };
 
   if (isLoading) {
@@ -194,56 +154,46 @@ function HomePage() {
         )}
 
         <div className="grid grid-cols-1 gap-6 md:grid-cols-4">
-          <Column
-            title="To Apply"
-            status="TO_APPLY"
-            jobs={jobs.filter((job) => job.status === "TO_APPLY")}
-            onJobClick={handleJobClick}
-            onDropJob={handleDropJob}
+          <Column 
+            title="To Apply" 
+            status="TO_APPLY" 
+            jobs={jobs.filter(job => job.status === "TO_APPLY")} 
+            onJobClick={handleJobClick} 
+            onDropJob={handleDropJob} 
           />
-          <Column
-            title="Applied"
-            status="APPLIED"
-            jobs={jobs.filter((job) => job.status === "APPLIED")}
-            onJobClick={handleJobClick}
-            onDropJob={handleDropJob}
+          <Column 
+            title="Applied" 
+            status="APPLIED" 
+            jobs={jobs.filter(job => job.status === "APPLIED")} 
+            onJobClick={handleJobClick} 
+            onDropJob={handleDropJob} 
           />
-          <Column
-            title="Interview Scheduled"
-            status="INTERVIEW_SCHEDULED"
-            jobs={jobs.filter((job) => job.status === "INTERVIEW_SCHEDULED")}
-            onJobClick={handleJobClick}
-            onDropJob={handleDropJob}
+          <Column 
+            title="Interview Scheduled" 
+            status="INTERVIEW_SCHEDULED" 
+            jobs={jobs.filter(job => job.status === "INTERVIEW_SCHEDULED")} 
+            onJobClick={handleJobClick} 
+            onDropJob={handleDropJob} 
           />
-          {/* Hidden Groups Column */}
           <div className="flex h-full w-full flex-col rounded-lg bg-gray-50 p-4">
             <h2 className="mb-4 text-lg font-semibold text-gray-900">Hidden Groups</h2>
             <Link href="/archived-jobs">
               <div className="flex items-center justify-between cursor-pointer border p-2 rounded hover:bg-gray-100">
                 <span className="text-base font-semibold">Rejections</span>
                 <span className="bg-blue-500 text-white rounded-full px-3 py-1 text-sm">
-                  {jobs.filter((job) => job.status === "ARCHIVED").length}
+                  {jobs.filter(job => job.status === "ARCHIVED").length}
                 </span>
               </div>
             </Link>
           </div>
         </div>
 
-        <Modal
-          isOpen={isModalOpen}
-          onClose={() => {
-            setIsModalOpen(false);
-            setSelectedJob(undefined);
-          }}
-          title={selectedJob ? "Edit Job" : "Add New Job"}
-        >
-          <JobForm
-            job={selectedJob}
-            onSubmit={handleSubmit}
-            onCancel={() => {
-              setIsModalOpen(false);
-              setSelectedJob(undefined);
-            }}
+        {/* Always render Modal and pass `show` prop to control visibility */}
+        <Modal show={isModalOpen} onClose={() => setIsModalOpen(false)}>
+          <JobForm 
+            job={selectedJob} 
+            onSubmit={handleJobSubmit} 
+            onCancel={() => setIsModalOpen(false)} 
           />
         </Modal>
       </div>
