@@ -32,7 +32,12 @@ export function Column({
 
   return (
     <div
-      ref={(node) => node && drop(node)}
+      // Return nothing from the callback ref
+      ref={(node) => {
+        if (node) {
+          drop(node);
+        }
+      }}
       className={`
         flex h-full w-full flex-col
         rounded-lg 
