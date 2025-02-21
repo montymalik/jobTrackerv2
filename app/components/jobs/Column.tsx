@@ -17,7 +17,6 @@ export function Column({
   onJobClick,
   onDropJob,
 }: ColumnProps) {
-  // Create a drop handler that logs the drop event and then calls onDropJob
   const dropHandler = (item: JobApplication) => {
     console.log("Dropped item:", item, "onto column:", status);
     onDropJob(item, status);
@@ -33,15 +32,19 @@ export function Column({
 
   return (
     <div
-      // Use a callback ref so that TypeScript sees a valid ref signature
-      ref={(node) => {
-        if (node) drop(node);
-      }}
-      className={`flex h-full w-full flex-col rounded-lg bg-gray-50 p-4 ${
-        isOver ? "bg-gray-100" : ""
-      }`}
+      ref={(node) => node && drop(node)}
+      className={`
+        flex h-full w-full flex-col
+        rounded-lg 
+        bg-gray-50 dark:bg-gray-900
+        p-4 
+        transition-colors
+        ${isOver ? "bg-gray-100 dark:bg-gray-800" : ""}
+      `}
     >
-      <h2 className="mb-4 text-lg font-semibold text-gray-900">{title}</h2>
+      <h2 className="mb-4 text-lg font-semibold text-gray-900 dark:text-gray-100">
+        {title}
+      </h2>
       <div className="flex flex-col gap-4">
         {jobs.map((job) => (
           <JobCard key={job.id} job={job} onClick={onJobClick} />

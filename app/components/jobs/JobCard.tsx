@@ -11,7 +11,6 @@ interface JobCardProps {
 }
 
 export function JobCard({ job, onClick, disableDrag = false }: JobCardProps) {
-  // If dragging is enabled, use the useDrag hook.
   const [{ isDragging }, dragRef] = disableDrag
     ? [{ isDragging: false }, null]
     : useDrag(() => ({
@@ -22,19 +21,15 @@ export function JobCard({ job, onClick, disableDrag = false }: JobCardProps) {
         }),
       }));
 
-  // A callback ref that attaches dragRef if dragging is enabled
   const attachDragRef = (node: HTMLDivElement | null) => {
     if (node && dragRef) {
       dragRef(node);
     }
   };
 
-  // Updated formatDate function to handle strings and Date objects
   const formatDate = (date: Date | string | null | undefined): string => {
     if (!date) return "";
-    // Convert to Date if it's not already a Date object
     const d = date instanceof Date ? date : new Date(date);
-    // Adjust for timezone and format as YYYY-MM-DD
     const adjusted = new Date(d.getTime() + d.getTimezoneOffset() * 60000);
     const year = adjusted.getFullYear();
     const month = String(adjusted.getMonth() + 1).padStart(2, "0");
@@ -46,22 +41,33 @@ export function JobCard({ job, onClick, disableDrag = false }: JobCardProps) {
     <div
       ref={attachDragRef}
       onClick={() => onClick(job)}
-      className={`relative cursor-pointer rounded-lg bg-white p-4 shadow-sm transition-all hover:shadow-md ${
-        isDragging ? "opacity-50" : "opacity-100"
-      }`}
+      className={`
+        relative cursor-pointer rounded-lg 
+        bg-white dark:bg-gray-800
+        p-4
+        shadow-lg 
+        transition-all 
+        hover:shadow-2xl 
+        hover:-translate-y-1
+        ${isDragging ? "opacity-50" : "opacity-100"}
+      `}
     >
       <div className="flex flex-col gap-2">
-        <h3 className="font-semibold text-gray-900">{job.companyName}</h3>
-        <p className="text-sm text-gray-600">{job.jobTitle}</p>
+        <h3 className="font-semibold text-gray-900 dark:text-gray-100">
+          {job.companyName}
+        </h3>
+        <p className="text-sm text-gray-600 dark:text-gray-300">
+          {job.jobTitle}
+        </p>
 
         {job.dateSubmitted && (
-          <p className="text-xs text-gray-500">
+          <p className="text-xs text-gray-500 dark:text-gray-400">
             Submitted: {formatDate(job.dateSubmitted)}
           </p>
         )}
 
         {job.dateOfInterview && (
-          <p className="text-xs text-gray-500">
+          <p className="text-xs text-gray-500 dark:text-gray-400">
             Interview: {formatDate(job.dateOfInterview)}
           </p>
         )}
@@ -71,7 +77,7 @@ export function JobCard({ job, onClick, disableDrag = false }: JobCardProps) {
             href={job.jobUrl}
             target="_blank"
             rel="noopener noreferrer"
-            className="text-sm text-blue-600 hover:text-blue-800"
+            className="text-sm text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300"
             onClick={(e) => e.stopPropagation()}
           >
             View Job Posting
@@ -79,11 +85,6 @@ export function JobCard({ job, onClick, disableDrag = false }: JobCardProps) {
         )}
       </div>
 
-      {/* 
-        Bottom-right dots:
-        - If confirmationReceived, show green dot on left
-        - If job.files exist, show purple dot on far right
-      */}
       {(job.confirmationReceived || job.files.length > 0) && (
         <div className="absolute bottom-2 right-2 flex items-center gap-1">
           {job.confirmationReceived && (
