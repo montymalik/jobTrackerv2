@@ -122,9 +122,7 @@ function HomePage() {
     <DndProvider backend={HTML5Backend}>
       <div className="min-h-screen bg-gray-100 dark:bg-gray-900 p-8 transition-colors">
         <div className="mb-6 flex items-center justify-between">
-          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
-            Job Application Tracker
-          </h1>
+          <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Job Application Tracker</h1>
           <div className="flex items-center gap-4">
             <DarkModeToggle />
             <button
