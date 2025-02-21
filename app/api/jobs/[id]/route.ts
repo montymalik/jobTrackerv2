@@ -22,10 +22,10 @@ const parseDate = (dateStr: string | null, fallback: Date | null) => {
 
 export async function GET(
   request: Request,
-  context: { params: { id: string } | Promise<{ id: string }> }
+  { params }: { params: { id: string } }
 ) {
   try {
-    const { id } = await context.params;
+    const { id } = params;
     if (!id) {
       return NextResponse.json(
         { error: "Job ID is required" },
@@ -57,10 +57,10 @@ export async function GET(
 
 export async function PUT(
   request: Request,
-  context: { params: { id: string } | Promise<{ id: string }> }
+  { params }: { params: { id: string } }
 ) {
   try {
-    const { id } = await context.params;
+    const { id } = params;
     if (!id) {
       console.error("No job ID provided in context");
       return NextResponse.json({ error: "Job ID is required" }, { status: 400 });
@@ -74,14 +74,14 @@ export async function PUT(
       const formData = await request.formData();
       for (const [key, value] of formData.entries()) {
         if (value instanceof File) {
-          const uploadDir = path.join(process.cwd(), "public/uploads");
+          const uploadDir = path.join(process.cwd(), "public/uploads", id);
           await fs.mkdir(uploadDir, { recursive: true });
 
           const filePath = path.join(uploadDir, value.name);
           const fileBuffer = Buffer.from(await value.arrayBuffer());
           await fs.writeFile(filePath, fileBuffer);
 
-          uploadedFiles.push({ fileName: value.name, fileType: value.type, nextcloudPath: `/uploads/${value.name}` });
+          uploadedFiles.push({ fileName: value.name, fileType: value.type, nextcloudPath: `/uploads/${id}/${value.name}` });
         } else {
           bodyData[key] = value;
         }
