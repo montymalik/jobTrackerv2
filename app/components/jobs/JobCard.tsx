@@ -11,9 +11,9 @@ interface JobCardProps {
 }
 
 export function JobCard({ job, onClick, disableDrag = false }: JobCardProps) {
-  // If dragging is enabled, use the useDrag hook.
+  // If dragging is disabled, we won't use react-dnd's dragRef.
   const [{ isDragging }, dragRef] = disableDrag
-    ? [{ isDragging: false }, useRef(null)]
+    ? [{ isDragging: false }, null]
     : useDrag(() => ({
         type: "JOB_CARD",
         item: job,
@@ -22,12 +22,19 @@ export function JobCard({ job, onClick, disableDrag = false }: JobCardProps) {
         }),
       }));
 
-  // Updated formatDate function to handle strings and Date objects
+  // A small helper for the ref
+  // - If drag is disabled, do nothing
+  // - Otherwise, call dragRef(node)
+  const attachDragRef = (node: HTMLDivElement | null) => {
+    if (!node || !dragRef) return;
+    // react-dnd's "dragRef" is a function that attaches to the node
+    dragRef(node);
+  };
+
+  // Format date for display
   const formatDate = (date: Date | string | null | undefined): string => {
     if (!date) return "";
-    // Convert to Date if it's not already a Date object
     const d = date instanceof Date ? date : new Date(date);
-    // Adjust for timezone and format as YYYY-MM-DD
     const adjusted = new Date(d.getTime() + d.getTimezoneOffset() * 60000);
     const year = adjusted.getFullYear();
     const month = String(adjusted.getMonth() + 1).padStart(2, "0");
@@ -37,7 +44,8 @@ export function JobCard({ job, onClick, disableDrag = false }: JobCardProps) {
 
   return (
     <div
-      ref={disableDrag ? null : dragRef}
+      // Instead of ref={disableDrag ? null : dragRef}, use a callback ref
+      ref={attachDragRef}
       onClick={() => onClick(job)}
       className={`relative cursor-pointer rounded-lg bg-white p-4 shadow-sm transition-all hover:shadow-md ${
         isDragging ? "opacity-50" : "opacity-100"
@@ -71,14 +79,12 @@ export function JobCard({ job, onClick, disableDrag = false }: JobCardProps) {
           </a>
         )}
 
-        {/* Display files vertically */}
         {job.files.length > 0 && (
-          <div className="mt-2 flex flex-col gap-1">
-            <p className="text-xs font-semibold text-gray-700">Uploaded Files:</p>
+          <div className="mt-2 flex gap-2">
             {job.files.map((file) => (
               <span
                 key={file.id}
-                className="rounded bg-gray-100 px-2 py-1 text-xs text-gray-600"
+                className="rounded-full bg-gray-100 px-2 py-1 text-xs text-gray-600"
               >
                 {file.fileName}
               </span>

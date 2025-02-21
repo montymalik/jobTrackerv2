@@ -1,4 +1,4 @@
-'use client';
+"use client";
 
 import { DndProvider } from "react-dnd";
 import { HTML5Backend } from "react-dnd-html5-backend";
@@ -122,7 +122,9 @@ function HomePage() {
     <DndProvider backend={HTML5Backend}>
       <div className="min-h-screen bg-gray-100 dark:bg-gray-900 p-8 transition-colors">
         <div className="mb-6 flex items-center justify-between">
-          <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Job Application Tracker</h1>
+          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
+            Job Application Tracker
+          </h1>
           <div className="flex items-center gap-4">
             <DarkModeToggle />
             <button
@@ -144,13 +146,39 @@ function HomePage() {
         )}
 
         <div className="grid grid-cols-1 gap-6 md:grid-cols-3">
-          <Column title="To Apply" status="TO_APPLY" jobs={jobs.filter(job => job.status === "TO_APPLY")} onJobClick={handleJobClick} onDropJob={handleDropJob} />
-          <Column title="Applied" status="APPLIED" jobs={jobs.filter(job => job.status === "APPLIED")} onJobClick={handleJobClick} onDropJob={handleDropJob} />
-          <Column title="Interview Scheduled" status="INTERVIEW_SCHEDULED" jobs={jobs.filter(job => job.status === "INTERVIEW_SCHEDULED")} onJobClick={handleJobClick} onDropJob={handleDropJob} />
+          <Column
+            title="To Apply"
+            status="TO_APPLY"
+            jobs={jobs.filter((job) => job.status === "TO_APPLY")}
+            onJobClick={handleJobClick}
+            onDropJob={handleDropJob}
+          />
+          <Column
+            title="Applied"
+            status="APPLIED"
+            jobs={jobs.filter((job) => job.status === "APPLIED")}
+            onJobClick={handleJobClick}
+            onDropJob={handleDropJob}
+          />
+          <Column
+            title="Interview Scheduled"
+            status="INTERVIEW_SCHEDULED"
+            jobs={jobs.filter((job) => job.status === "INTERVIEW_SCHEDULED")}
+            onJobClick={handleJobClick}
+            onDropJob={handleDropJob}
+          />
         </div>
 
-        <Modal show={isModalOpen} onClose={() => setIsModalOpen(false)}>
-          <JobForm job={selectedJob} onSubmit={handleJobSubmit} onCancel={() => setIsModalOpen(false)} />
+        <Modal
+          show={isModalOpen}
+          onClose={() => setIsModalOpen(false)}
+          title={selectedJob ? `Edit Job - ${selectedJob.companyName}` : "Add New Job"}
+        >
+          <JobForm
+            job={selectedJob}
+            onSubmit={handleJobSubmit}
+            onCancel={() => setIsModalOpen(false)}
+          />
         </Modal>
       </div>
     </DndProvider>

@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { JobCard } from "@/app/components/jobs/JobCard";
 import { JobApplication } from "@/app/lib/types";
-import  { Modal } from "@/app/components/ui/Modal";
+import { Modal } from "@/app/components/ui/Modal";
 
 export default function ArchivedJobsPage() {
   const [archivedJobs, setArchivedJobs] = useState<JobApplication[]>([]);
@@ -37,13 +37,19 @@ export default function ArchivedJobsPage() {
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {archivedJobs.map((job) => (
-            <JobCard key={job.id} job={job} onClick={() => setSelectedJob(job)} disableDrag={true} />
+            <JobCard
+              key={job.id}
+              job={job}
+              onClick={() => setSelectedJob(job)}
+              disableDrag={true}
+            />
           ))}
         </div>
       )}
       {selectedJob && (
         <Modal
-          isOpen={true}
+          // Changed from isOpen to show
+          show={true}
           onClose={() => setSelectedJob(null)}
           title={`Job Details - ${selectedJob.jobTitle}`}
         >

@@ -33,7 +33,10 @@ export function Column({
 
   return (
     <div
-      ref={drop}
+      // Use a callback ref so that TypeScript sees a valid ref signature
+      ref={(node) => {
+        if (node) drop(node);
+      }}
       className={`flex h-full w-full flex-col rounded-lg bg-gray-50 p-4 ${
         isOver ? "bg-gray-100" : ""
       }`}
