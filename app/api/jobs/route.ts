@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/app/lib/prisma";
-import { promises as fs } from 'fs';
-import path from 'path';
+import { promises as fs } from "fs";
+import path from "path";
 
 export async function GET(request: Request) {
   try {
@@ -63,23 +63,36 @@ export async function POST(request: Request) {
 
     // Handle file uploads
     const files = formData.getAll("files") as File[];
+    const uploadedFiles = [];
+
     if (files.length > 0) {
-      const filePromises = files.map(async (file) => {
-        if (file.size > 0) { // Check if file is not empty
-          const path = `/job-tracker/${job.id}/${file.name}`;
-          await uploadFile(file, path);
-          return prisma.jobFile.create({
-            data: {
-              fileName: file.name,
-              fileType: file.type,
-              nextcloudPath: path,
-              jobApplicationId: job.id,
-            },
+      const uploadDir = path.join(process.cwd(), "public/uploads", job.id);
+      await fs.mkdir(uploadDir, { recursive: true });
+
+      for (const file of files) {
+        if (file.size > 0) { // Ensure file is not empty
+          const filePath = path.join(uploadDir, file.name);
+          const fileBuffer = Buffer.from(await file.arrayBuffer());
+          await fs.writeFile(filePath, fileBuffer);
+
+          uploadedFiles.push({
+            fileName: file.name,
+            fileType: file.type,
+            nextcloudPath: `/uploads/${job.id}/${file.name}`,
           });
         }
-      });
+      }
 
-      await Promise.all(filePromises.filter(Boolean));
+      if (uploadedFiles.length > 0) {
+        await prisma.jobFile.createMany({
+          data: uploadedFiles.map(file => ({
+            fileName: file.fileName,
+            fileType: file.fileType,
+            nextcloudPath: file.nextcloudPath,
+            jobApplicationId: job.id,
+          })),
+        });
+      }
     }
 
     // Fetch the created job with files
