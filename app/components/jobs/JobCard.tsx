@@ -71,12 +71,14 @@ export function JobCard({ job, onClick, disableDrag = false }: JobCardProps) {
           </a>
         )}
 
+        {/* Display files vertically */}
         {job.files.length > 0 && (
-          <div className="mt-2 flex gap-2">
+          <div className="mt-2 flex flex-col gap-1">
+            <p className="text-xs font-semibold text-gray-700">Uploaded Files:</p>
             {job.files.map((file) => (
               <span
                 key={file.id}
-                className="rounded-full bg-gray-100 px-2 py-1 text-xs text-gray-600"
+                className="rounded bg-gray-100 px-2 py-1 text-xs text-gray-600"
               >
                 {file.fileName}
               </span>
