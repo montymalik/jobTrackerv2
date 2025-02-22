@@ -3,11 +3,11 @@
 @tailwind utilities;
 
 body {
-  @apply bg-gray-100 text-gray-900 transition-colors duration-300;
+  @apply w-full bg-gray-100 text-gray-900 transition-colors duration-300;
 }
 
 /* Dark mode styles */
 .dark body {
-  @apply bg-gray-900 text-white;
+  @apply w-full bg-gray-900 text-white;
 }
 

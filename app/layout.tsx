@@ -16,10 +16,23 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en">
-      <body className={inter.className}>
-        <div className="min-h-screen bg-gray-100">
-          <main className="container mx-auto px-4 py-8">{children}</main>
-        </div>
+      {/* If you're toggling dark mode by adding 'dark' class to <html>, 
+          you can do so here or dynamically in your dark mode toggle. */}
+      <body
+        className={`
+          ${inter.className} 
+          min-h-screen w-full 
+          bg-gray-100 dark:bg-gray-900 
+          text-gray-900 dark:text-gray-100
+          m-0 p-0 
+          transition-colors
+        `}
+      >
+        {/* 
+          Removed container-based classes like mx-auto, px-4, py-8 to eliminate page padding. 
+          'children' can still have their own spacing if needed. 
+        */}
+        {children}
       </body>
     </html>
   );
