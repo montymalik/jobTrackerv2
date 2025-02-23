@@ -23,6 +23,7 @@
 # misc
 .DS_Store
 *.pem
+**/webdav.ts
 
 # debug
 npm-debug.log*
