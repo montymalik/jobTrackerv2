@@ -17,27 +17,20 @@ export function Column({
   onJobClick,
   onDropJob,
 }: ColumnProps) {
-  const dropHandler = (item: JobApplication) => {
-    console.log("Dropped item:", item, "onto column:", status);
-    onDropJob(item, status);
-  };
-
-  const [{ isOver }, drop] = useDrop(() => ({
-    accept: "JOB_CARD",
-    drop: dropHandler,
+  const [{ isOver }, dropRef] = useDrop({
+    accept: "JOB_CARD", // Accept drops from all columns
+    drop: (item: JobApplication) => {
+      console.log(`Dropped ${item.jobTitle} onto ${status} column`);
+      onDropJob(item, status); // Ensure onDropJob works for "APPLIED" column
+    },
     collect: (monitor) => ({
       isOver: monitor.isOver(),
     }),
-  }));
+  });
 
   return (
     <div
-      // Return nothing from the callback ref
-      ref={(node) => {
-        if (node) {
-          drop(node);
-        }
-      }}
+      ref={dropRef} // Fix the drop ref assignment
       className={`
         flex h-full w-full flex-col
         rounded-lg 
@@ -52,7 +45,13 @@ export function Column({
       </h2>
       <div className="flex flex-col gap-4">
         {jobs.map((job) => (
-          <JobCard key={job.id} job={job} onClick={onJobClick} />
+          <JobCard
+            key={job.id}
+            job={job}
+            onClick={onJobClick}
+            disableDrag={false} // Allow dragging from all columns
+            columnStatus={status} // Pass column status to determine compact view
+          />
         ))}
       </div>
     </div>

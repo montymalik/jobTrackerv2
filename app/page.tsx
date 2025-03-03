@@ -120,8 +120,8 @@ function HomePage() {
 
   return (
     <DndProvider backend={HTML5Backend}>
-      <div className="min-h-screen bg-gray-100 dark:bg-gray-900 p-8 transition-colors">
-        <div className="mb-6 flex items-center justify-between">
+      <div className="min-h-screen bg-gray-100 dark:bg-gray-900 p-0 transition-colors">
+        <div className="mb-6 flex items-center justify-between p-4">
           <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
             Job Application Tracker
           </h1>
@@ -145,7 +145,7 @@ function HomePage() {
           </div>
         )}
 
-        <div className="grid grid-cols-1 gap-6 md:grid-cols-3">
+        <div className="grid grid-cols-1 gap-6 md:grid-cols-3 p-4">
           <Column
             title="To Apply"
             status="TO_APPLY"
