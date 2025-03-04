@@ -2,7 +2,7 @@
 
 import { JobApplication } from "@/app/lib/types";
 import { useDrag } from "react-dnd";
-import { useRef, useState } from "react";
+import { useRef, useState, useEffect } from "react";
 
 interface JobCardProps {
   job: JobApplication;
@@ -17,17 +17,25 @@ export function JobCard({
   disableDrag = false,
   columnStatus,
 }: JobCardProps) {
-  const [{ isDragging }, dragRef] = disableDrag
-    ? [{ isDragging: false }, useRef(null)]
-    : useDrag(() => ({
-        type: "JOB_CARD",
-        item: job,
-        collect: (monitor) => ({
-          isDragging: monitor.isDragging(),
-        }),
-      }));
+  const cardRef = useRef<HTMLDivElement | null>(null); // Create a ref for the card
+
+  // Use drag only if dragging is enabled
+  const [{ isDragging }, dragRef] = useDrag({
+    type: "JOB_CARD",
+    item: job,
+    collect: (monitor) => ({
+      isDragging: monitor.isDragging(),
+    }),
+  });
 
   const [isHovered, setIsHovered] = useState(false);
+
+  // Apply dragRef to cardRef if dragging is enabled
+  useEffect(() => {
+    if (!disableDrag && cardRef.current) {
+      dragRef(cardRef);
+    }
+  }, [disableDrag, dragRef]);
 
   // Updated formatDate function to handle strings and Date objects
   const formatDate = (date: Date | string | null | undefined): string => {
@@ -35,7 +43,7 @@ export function JobCard({
     const d = date instanceof Date ? date : new Date(date);
     const adjusted = new Date(d.getTime() + d.getTimezoneOffset() * 60000);
     const year = adjusted.getFullYear();
-    const month = String(adjusted.getMonth() + 1).padStart(2, "0");
+    const month = String(d.getMonth() + 1).padStart(2, "0");
     const day = String(adjusted.getDate()).padStart(2, "0");
     return `${year}-${month}-${day}`;
   };
@@ -45,9 +53,9 @@ export function JobCard({
 
   return (
     <div
-      ref={disableDrag ? null : dragRef}
+      ref={cardRef}
       onClick={() => onClick(job)}
-      className={`relative cursor-pointer rounded-lg bg-white dark:bg-gray-800 p-4 shadow-sm transition-all hover:shadow-md ${
+      className={`relative cursor-pointer rounded-lg bg-white dark:bg-gray-800 p-4 shadow-md transition-all ${
         isDragging ? "opacity-50" : "opacity-100"
       } ${isCompact ? "max-h-20 overflow-hidden" : "max-h-full"} ${
         isHovered ? "hover:bg-gray-100 dark:hover:bg-gray-700" : ""

@@ -1,6 +1,7 @@
 import { JobApplication, ApplicationStatus } from "@/app/lib/types";
 import { JobCard } from "./JobCard";
 import { useDrop } from "react-dnd";
+import { useRef } from "react";
 
 interface ColumnProps {
   title: string;
@@ -17,20 +18,24 @@ export function Column({
   onJobClick,
   onDropJob,
 }: ColumnProps) {
-  const [{ isOver }, dropRef] = useDrop({
-    accept: "JOB_CARD", // Accept drops from all columns
+  const dropRef = useRef<HTMLDivElement | null>(null);
+
+  const [{ isOver }, drop] = useDrop({
+    accept: "JOB_CARD",
     drop: (item: JobApplication) => {
-      console.log(`Dropped ${item.jobTitle} onto ${status} column`);
-      onDropJob(item, status); // Ensure onDropJob works for "APPLIED" column
+      console.log("Dropped item:", item, "onto column:", status);
+      onDropJob(item, status);
     },
     collect: (monitor) => ({
       isOver: monitor.isOver(),
     }),
   });
 
+  drop(dropRef);
+
   return (
     <div
-      ref={dropRef} // Fix the drop ref assignment
+      ref={dropRef}
       className={`
         flex h-full w-full flex-col
         rounded-lg 
@@ -49,8 +54,7 @@ export function Column({
             key={job.id}
             job={job}
             onClick={onJobClick}
-            disableDrag={false} // Allow dragging from all columns
-            columnStatus={status} // Pass column status to determine compact view
+            columnStatus={status} // Pass column status to JobCard
           />
         ))}
       </div>
