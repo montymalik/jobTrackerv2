@@ -10,12 +10,8 @@ interface JobFormProps {
 export function JobForm({ job, onSubmit, onCancel }: JobFormProps) {
   const [files, setFiles] = useState<File[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [confirmationChecked, setConfirmationChecked] = useState(
-    job?.confirmationReceived || false
-  );
-  const [rejectionChecked, setRejectionChecked] = useState(
-    job?.rejectionReceived || false
-  );
+  const [confirmationChecked, setConfirmationChecked] = useState(job?.confirmationReceived || false);
+  const [rejectionChecked, setRejectionChecked] = useState(job?.rejectionReceived || false);
 
   useEffect(() => {
     setConfirmationChecked(job?.confirmationReceived || false);
@@ -53,147 +49,124 @@ export function JobForm({ job, onSubmit, onCancel }: JobFormProps) {
   const formatDate = (date: Date | null | undefined): string => {
     if (!date) return "";
     const d = new Date(date);
-    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(
-      d.getDate()
-    ).padStart(2, "0")}`;
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
   };
 
   return (
     <form
       onSubmit={handleSubmit}
-      className="grid grid-cols-2 gap-2 rounded-md bg-white p-2 dark:bg-gray-800 dark:text-gray-100 max-h-[calc(100vh-200px)] overflow-y-auto text-xs"
-      style={{ fontSize: "12px" }}
+      className="flex flex-col gap-4 rounded-md bg-white p-4 dark:bg-gray-800 dark:text-gray-100 h-full max-h-[calc(90vh-40px)] overflow-hidden"
     >
-      {/* Company Name */}
-      <div className="col-span-1">
-        <label className="block text-xs font-medium text-gray-700 dark:text-gray-300">
-          Company Name
-        </label>
-        <input
-          type="text"
-          name="companyName"
-          defaultValue={job?.companyName}
-          required
-          className="mt-1 block w-full rounded-md border border-gray-300 px-2 py-1 dark:border-gray-700 dark:bg-gray-700 dark:text-gray-100"
-        />
+      <div className="flex flex-wrap gap-4">
+        <div className="flex-1 min-w-[200px]">
+          <label className="block text-sm font-medium">Company Name</label>
+          <input
+            type="text"
+            name="companyName"
+            defaultValue={job?.companyName}
+            required
+            className="mt-1 block w-full rounded-md border dark:border-gray-600 dark:bg-gray-700 p-1"
+          />
+        </div>
+
+        <div className="flex-1 min-w-[200px]">
+          <label className="block text-sm font-medium">Job Title</label>
+          <input
+            type="text"
+            name="jobTitle"
+            defaultValue={job?.jobTitle}
+            required
+            className="mt-1 block w-full rounded-md border dark:border-gray-600 dark:bg-gray-700 p-1"
+          />
+        </div>
+
+        <div className="flex-1 min-w-[200px]">
+          <label className="block text-sm font-medium">Job URL</label>
+          <input
+            type="url"
+            name="jobUrl"
+            defaultValue={job?.jobUrl || ""}
+            className="mt-1 block w-full rounded-md border dark:border-gray-600 dark:bg-gray-700 p-1"
+          />
+        </div>
       </div>
 
-      {/* Job Title */}
-      <div className="col-span-1">
-        <label className="block text-xs font-medium text-gray-700 dark:text-gray-300">
-          Job Title
-        </label>
-        <input
-          type="text"
-          name="jobTitle"
-          defaultValue={job?.jobTitle}
-          required
-          className="mt-1 block w-full rounded-md border border-gray-300 px-2 py-1 dark:border-gray-700 dark:bg-gray-700 dark:text-gray-100"
-        />
-      </div>
-
-      {/* Job URL */}
-      <div className="col-span-2">
-        <label className="block text-xs font-medium text-gray-700 dark:text-gray-300">
-          Job URL
-        </label>
-        <input
-          type="url"
-          name="jobUrl"
-          defaultValue={job?.jobUrl || ""}
-          className="mt-1 block w-full rounded-md border border-gray-300 px-2 py-1 dark:border-gray-700 dark:bg-gray-700 dark:text-gray-100"
-        />
-      </div>
-
-      {/* Job Description */}
-      <div className="col-span-2">
-        <label className="block text-xs font-medium text-gray-700 dark:text-gray-300">
-          Job Description
-        </label>
+      <div className="flex-1">
+        <label className="block text-sm font-medium">Job Description</label>
         <textarea
           name="jobDescription"
           defaultValue={job?.jobDescription || ""}
           rows={3}
-          className="mt-1 block w-full rounded-md border border-gray-300 px-2 py-1 dark:border-gray-700 dark:bg-gray-700 dark:text-gray-100"
+          className="mt-1 block w-full rounded-md border dark:border-gray-600 dark:bg-gray-700 p-1"
         />
       </div>
 
-      {/* Date Submitted and Interview */}
-      <div className="col-span-1">
-        <label className="block text-xs font-medium text-gray-700 dark:text-gray-300">
-          Date Submitted
-        </label>
-        <input
-          type="date"
-          name="dateSubmitted"
-          defaultValue={job?.dateSubmitted ? formatDate(job.dateSubmitted) : ""}
-          className="mt-1 block w-full rounded-md border border-gray-300 px-2 py-1 dark:border-gray-700 dark:bg-gray-700 dark:text-gray-100"
-        />
+      <div className="flex gap-4">
+        <div className="flex-1">
+          <label className="block text-sm font-medium">Date Submitted</label>
+          <input
+            type="date"
+            name="dateSubmitted"
+            defaultValue={job?.dateSubmitted ? formatDate(job.dateSubmitted) : ""}
+            className="mt-1 block w-full rounded-md border dark:border-gray-600 dark:bg-gray-700 p-1"
+          />
+        </div>
+
+        <div className="flex-1">
+          <label className="block text-sm font-medium">Date of Interview</label>
+          <input
+            type="date"
+            name="dateOfInterview"
+            defaultValue={job?.dateOfInterview ? formatDate(job.dateOfInterview) : ""}
+            className="mt-1 block w-full rounded-md border dark:border-gray-600 dark:bg-gray-700 p-1"
+          />
+        </div>
       </div>
 
-      <div className="col-span-1">
-        <label className="block text-xs font-medium text-gray-700 dark:text-gray-300">
-          Date of Interview
+      <div className="flex items-center gap-4">
+        <label className="inline-flex items-center">
+          <input
+            type="checkbox"
+            checked={confirmationChecked}
+            onChange={(e) => setConfirmationChecked(e.target.checked)}
+            className="rounded border-gray-300 text-blue-600 dark:bg-gray-700"
+          />
+          <span className="ml-2">Confirmation Received</span>
         </label>
-        <input
-          type="date"
-          name="dateOfInterview"
-          defaultValue={job?.dateOfInterview ? formatDate(job.dateOfInterview) : ""}
-          className="mt-1 block w-full rounded-md border border-gray-300 px-2 py-1 dark:border-gray-700 dark:bg-gray-700 dark:text-gray-100"
-        />
-      </div>
 
-      {/* Confirmation and Rejection Checkboxes */}
-      <div className="col-span-1 flex items-center gap-2">
-        <input
-          type="checkbox"
-          checked={confirmationChecked}
-          onChange={(e) => setConfirmationChecked(e.target.checked)}
-          className="h-4 w-4 rounded dark:bg-gray-700"
-        />
-        <label className="text-xs text-gray-700 dark:text-gray-300">
-          Confirmation Received
-        </label>
-      </div>
-
-      <div className="col-span-1 flex items-center gap-2">
-        <input
-          type="checkbox"
-          checked={rejectionChecked}
-          onChange={(e) => setRejectionChecked(e.target.checked)}
-          className="h-4 w-4 rounded dark:bg-gray-700"
-        />
-        <label className="text-xs text-gray-700 dark:text-gray-300">
-          Rejection Received
+        <label className="inline-flex items-center">
+          <input
+            type="checkbox"
+            checked={rejectionChecked}
+            onChange={(e) => setRejectionChecked(e.target.checked)}
+            className="rounded border-gray-300 text-red-600 dark:bg-gray-700"
+          />
+          <span className="ml-2">Rejection Received</span>
         </label>
       </div>
 
-      {/* File Upload */}
-      <div className="col-span-2">
-        <label className="block text-xs font-medium text-gray-700 dark:text-gray-300">
-          Upload Files
-        </label>
+      <div>
+        <label className="block text-sm font-medium">Upload Files</label>
         <input
           type="file"
           multiple
           onChange={(e) => setFiles(Array.from(e.target.files || []))}
-          className="mt-1 block w-full text-xs text-gray-500 dark:text-gray-300"
+          className="mt-1 block w-full text-sm text-gray-500 dark:text-gray-300"
         />
       </div>
 
-      {/* Buttons */}
-      <div className="col-span-2 flex justify-end gap-2">
+      <div className="flex justify-end gap-4 mt-4">
         <button
           type="button"
           onClick={onCancel}
-          className="rounded-md border bg-white dark:bg-gray-700 px-3 py-1 text-xs dark:text-gray-200"
+          className="px-4 py-2 rounded-md border dark:bg-gray-700 dark:text-gray-200"
         >
           Cancel
         </button>
         <button
           type="submit"
           disabled={isSubmitting}
-          className="rounded-md bg-blue-600 px-3 py-1 text-xs text-white hover:bg-blue-700"
+          className="px-4 py-2 rounded-md bg-blue-600 text-white hover:bg-blue-700"
         >
           {isSubmitting ? "Saving..." : job ? "Update" : "Create"}
         </button>
