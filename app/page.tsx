@@ -1,5 +1,4 @@
 "use client";
-
 import { DndProvider } from "react-dnd";
 import { HTML5Backend } from "react-dnd-html5-backend";
 import { useState, useEffect } from "react";
@@ -11,6 +10,7 @@ import { ErrorMessage } from "./components/ui/ErrorMessage";
 import { JobApplication, ApplicationStatus } from "./lib/types";
 import DarkModeToggle from "./components/ui/DarkModeToggle";
 import Link from "next/link";
+import { ResumeUploadForm } from "./components/resume/ResumeUploadForm";
 
 function HomePage() {
   const [jobs, setJobs] = useState<JobApplication[]>([]);
@@ -18,9 +18,13 @@ function HomePage() {
   const [selectedJob, setSelectedJob] = useState<JobApplication | undefined>();
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [isResumeModalOpen, setIsResumeModalOpen] = useState(false);
+  const [hasBaseResume, setHasBaseResume] = useState(false);
+  const [resumeUploadSuccess, setResumeUploadSuccess] = useState(false);
 
   useEffect(() => {
     fetchJobs();
+    checkBaseResume();
   }, []);
 
   const fetchJobs = async () => {
@@ -30,7 +34,6 @@ function HomePage() {
       const response = await fetch("/api/jobs");
       if (!response.ok) throw new Error("Failed to fetch jobs");
       let data = await response.json();
-
       data = data.map((job: any) => ({
         ...job,
         dateSubmitted: job.dateSubmitted ? new Date(job.dateSubmitted) : null,
@@ -45,13 +48,22 @@ function HomePage() {
     }
   };
 
+  const checkBaseResume = async () => {
+    try {
+      const response = await fetch("/api/resume");
+      setHasBaseResume(response.ok);
+    } catch (error) {
+      console.error("Error checking base resume:", error);
+      setHasBaseResume(false);
+    }
+  };
+
   const handleDropJob = async (job: JobApplication, newStatus: ApplicationStatus) => {
     try {
       setError(null);
       const response = await fetch(`/api/jobs/${job.id}`);
       if (!response.ok) throw new Error("Failed to fetch job details");
       const existingJobData = await response.json();
-
       const updateResponse = await fetch(`/api/jobs/${job.id}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
@@ -62,12 +74,10 @@ function HomePage() {
           confirmationReceived: existingJobData.confirmationReceived,
         }),
       });
-
       if (!updateResponse.ok) {
         const errorText = await updateResponse.text();
         throw new Error(errorText || `Server responded with status ${updateResponse.status}`);
       }
-
       await fetchJobs();
     } catch (error) {
       setError(error instanceof Error ? error.message : "Failed to update job status");
@@ -95,18 +105,41 @@ function HomePage() {
           body: formData,
         });
       }
-
       if (!response.ok) {
         const errorText = await response.text();
         throw new Error(errorText || `Server responded with status ${response.status}`);
       }
-
       await fetchJobs();
       setIsModalOpen(false);
       setSelectedJob(undefined);
     } catch (error) {
       setError(error instanceof Error ? error.message : "Error saving job");
       console.error("Error submitting job:", error);
+    }
+  };
+
+  const handleResumeUpload = async (formData: FormData) => {
+    try {
+      setError(null);
+      const response = await fetch("/api/resume", {
+        method: "POST",
+        body: formData,
+      });
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(errorText || `Server responded with status ${response.status}`);
+      }
+      setResumeUploadSuccess(true);
+      setHasBaseResume(true);
+      
+      // Close the modal after a brief delay to show success state
+      setTimeout(() => {
+        setIsResumeModalOpen(false);
+        setResumeUploadSuccess(false);
+      }, 1500);
+    } catch (error) {
+      setError(error instanceof Error ? error.message : "Error uploading resume");
+      console.error("Error uploading resume:", error);
     }
   };
 
@@ -128,6 +161,12 @@ function HomePage() {
           <div className="flex items-center gap-4">
             <DarkModeToggle />
             <button
+              onClick={() => setIsResumeModalOpen(true)}
+              className={`rounded-md ${hasBaseResume ? 'bg-green-600 hover:bg-green-700' : 'bg-purple-600 hover:bg-purple-700'} px-4 py-2 text-white transition`}
+            >
+              {hasBaseResume ? "Update Base Resume" : "Upload Base Resume"}
+            </button>
+            <button
               onClick={() => {
                 setSelectedJob(undefined);
                 setIsModalOpen(true);
@@ -138,13 +177,11 @@ function HomePage() {
             </button>
           </div>
         </div>
-
         {error && (
           <div className="mb-6">
             <ErrorMessage message={error} onRetry={fetchJobs} />
           </div>
         )}
-
         <div className="grid grid-cols-1 gap-6 md:grid-cols-3 p-4">
           <Column
             title="To Apply"
@@ -168,7 +205,6 @@ function HomePage() {
             onDropJob={handleDropJob}
           />
         </div>
-
         <Modal
           show={isModalOpen}
           onClose={() => setIsModalOpen(false)}
@@ -180,10 +216,36 @@ function HomePage() {
             onCancel={() => setIsModalOpen(false)}
           />
         </Modal>
+        <Modal
+          show={isResumeModalOpen}
+          onClose={() => {
+            setIsResumeModalOpen(false);
+            setResumeUploadSuccess(false);
+          }}
+          title="Upload Base Resume"
+        >
+          {resumeUploadSuccess ? (
+            <div className="text-center py-8">
+              <div className="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-green-100 dark:bg-green-900">
+                <svg className="h-6 w-6 text-green-600 dark:text-green-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7" />
+                </svg>
+              </div>
+              <h3 className="mt-2 text-lg font-medium text-gray-900 dark:text-white">Resume Uploaded Successfully!</h3>
+              <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
+                Your base resume has been uploaded and will be used for job applications.
+              </p>
+            </div>
+          ) : (
+            <ResumeUploadForm
+              onSubmit={handleResumeUpload}
+              onCancel={() => setIsResumeModalOpen(false)}
+            />
+          )}
+        </Modal>
       </div>
     </DndProvider>
   );
 }
 
 export default HomePage;
-
