@@ -13,8 +13,11 @@ export default function useJobForm(job?: JobApplication) {
     notes: job?.notes || "",
   });
 
+  // Handle keySkills safely regardless of its presence in the JobApplication type
   const [skills, setSkills] = useState<string[]>(
-    job && job.keySkills ? job.keySkills.split(",").map((s) => s.trim()) : []
+    job && (job as any).keySkills 
+      ? ((job as any).keySkills as string).split(",").map((s) => s.trim()) 
+      : []
   );
 
   const [isAnalyzing, setIsAnalyzing] = useState(false);

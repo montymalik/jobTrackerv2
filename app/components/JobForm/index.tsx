@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, RefObject } from "react";
 import { JobFormProps } from "./types";
 import { spinnerStyles } from "./styles";
 import useJobForm from "./hooks/useJobForm";
@@ -15,9 +15,24 @@ export function JobForm({ job, onSubmit, onCancel }: JobFormProps) {
   const [activeTab, setActiveTab] = useState("details");
   const [isSubmitting, setIsSubmitting] = useState(false);
   
-  const { formState, skills, handleChange, setSkills, isAnalyzing, analyzeSkills } = useJobForm(job);
-  const { files, existingFiles, handleFileUpload, handleFileChange, fileInputRef, setFiles } = useFileManagement(job);
-
+  const { 
+    formState, 
+    handleChange, 
+    skills, 
+    setSkills, 
+    isAnalyzing, 
+    analyzeSkills 
+  } = useJobForm(job);
+  
+  const { 
+    files, 
+    existingFiles, 
+    handleFileUpload, 
+    handleFileChange, 
+    fileInputRef, 
+    setFiles 
+  } = useFileManagement(job);
+  
   useEffect(() => {
     // Add the spinner styles to the document head
     const styleElement = document.createElement('style');
@@ -31,7 +46,7 @@ export function JobForm({ job, onSubmit, onCancel }: JobFormProps) {
       }
     };
   }, []);
-
+  
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setIsSubmitting(true);
@@ -41,9 +56,17 @@ export function JobForm({ job, onSubmit, onCancel }: JobFormProps) {
       Object.entries(formState).forEach(([key, value]) => {
         formData.append(key, String(value));
       });
+      
+      // Add skills as a comma-separated string
+      if (skills.length > 0) {
+        formData.append("keySkills", skills.join(", "));
+      }
+      
+      // Add files
       files.forEach((file) => {
         formData.append("files", file);
       });
+      
       await onSubmit(formData);
     } catch (error) {
       console.error("Error submitting form:", error);
@@ -51,7 +74,7 @@ export function JobForm({ job, onSubmit, onCancel }: JobFormProps) {
       setIsSubmitting(false);
     }
   };
-
+  
   // Navigation items - Now includes the Resume Generator tab
   const navItems = [
     { id: "details", label: "Details", icon: "📋" },
@@ -155,7 +178,7 @@ export function JobForm({ job, onSubmit, onCancel }: JobFormProps) {
           <FilesTab 
             files={files}
             existingFiles={existingFiles}
-            fileInputRef={fileInputRef}
+            fileInputRef={fileInputRef as RefObject<HTMLInputElement>}
             handleFileUpload={handleFileUpload}
             handleFileChange={handleFileChange}
             setFiles={setFiles}

@@ -2,6 +2,23 @@ import { NextRequest, NextResponse } from "next/server";
 import fetch from "node-fetch";
 import { prisma } from "@/app/lib/prisma";
 
+// Define types for the Gemini API response
+interface GeminiResponsePart {
+  text: string;
+}
+
+interface GeminiResponseContent {
+  parts: GeminiResponsePart[];
+}
+
+interface GeminiResponseCandidate {
+  content: GeminiResponseContent;
+}
+
+interface GeminiResponse {
+  candidates: GeminiResponseCandidate[];
+}
+
 // Function to call Gemini API (modified to match the first code)
 async function callGemini(prompt: string) {
   try {
@@ -9,9 +26,7 @@ async function callGemini(prompt: string) {
     if (!GOOGLE_API_KEY) {
       throw new Error("Google API key not configured");
     }
-
     console.log("Calling Gemini API with prompt:", prompt);  // Debug log
-
     const response = await fetch(
       `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-thinking-exp:generateContent?key=${GOOGLE_API_KEY}`,
       {
@@ -28,23 +43,20 @@ async function callGemini(prompt: string) {
         }),
       },
     );
-
     if (!response.ok) {
       const error = await response.json();
       console.error("Error from Gemini API:", error);
       throw new Error("Failed to analyze skills.");
     }
-
-    const data = await response.json();
+    const data = await response.json() as GeminiResponse;
     console.log("Gemini API response data:", data);  // Debug log
-
-    // Modified extraction of the message based on the first code's structure
+    
+    // Now TypeScript knows the structure of data
     const message = data.candidates?.[0]?.content?.parts?.[0]?.text;
     if (!message) {
       console.error("No response from Gemini API.");  // Debug log
       throw new Error("No response from Gemini API.");
     }
-
     console.log("Received message from Gemini API:", message);  // Debug log
     return message;
   } catch (error) {
@@ -54,8 +66,6 @@ async function callGemini(prompt: string) {
 }
 
 // Handle POST NextRequest
-// ... (same imports and callGemini function) ...
-
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
@@ -123,4 +133,3 @@ export async function POST(request: NextRequest) {
     );
   }
 }
-

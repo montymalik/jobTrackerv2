@@ -1,6 +1,7 @@
-import React, { useState, useRef } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import { FormState } from "../types";
-import html2pdf from 'html2pdf.js';
+// Remove direct import of html2pdf
+// import html2pdf from 'html2pdf.js';
 
 interface CoverLetterTabProps {
   formState: FormState;
@@ -13,6 +14,14 @@ const CoverLetterTab: React.FC<CoverLetterTabProps> = ({ formState, jobId }) => 
   const [error, setError] = useState("");
   const textAreaRef = useRef<HTMLTextAreaElement>(null);
   const pdfContainerRef = useRef<HTMLDivElement>(null);
+  
+  // Flag to check if we're running in browser
+  const [isBrowser, setIsBrowser] = useState(false);
+  
+  // Set isBrowser to true once component mounts
+  useEffect(() => {
+    setIsBrowser(true);
+  }, []);
 
   const generateCoverLetter = async () => {
     if (!formState.companyName || !formState.jobTitle) {
@@ -96,87 +105,100 @@ const CoverLetterTab: React.FC<CoverLetterTabProps> = ({ formState, jobId }) => 
     }
   };
 
-  const exportToPDF = () => {
-    if (!coverLetter) return;
+  const exportToPDF = async () => {
+    if (!coverLetter || !isBrowser) return;
     
-    // Use a simpler approach with direct rendering
-    const element = document.createElement('div');
-    element.innerHTML = `
-      <!DOCTYPE html>
-      <html>
-      <head>
-        <style>
-          body {
-            font-family: Arial, sans-serif;
-            color: #000000;
-            line-height: 1.6;
-            margin: 0;
-            padding: 20px;
-            background-color: #ffffff;
-          }
-          .container {
-            max-width: 8.5in;
-            margin: 0 auto;
-          }
-          .date {
-            text-align: right;
-            margin-bottom: 30px;
-            color: #000000;
-          }
-          .content {
-            color: #000000;
-          }
-          p {
-            margin-bottom: 16px;
-            color: #000000;
-          }
-        </style>
-      </head>
-      <body>
-        <div class="container">
-          <div class="date">
-            <p>${new Date().toLocaleDateString()}</p>
+    try {
+      // Dynamically import html2pdf only on the client side
+      const html2pdfModule = await import('html2pdf.js');
+      const html2pdf = html2pdfModule.default;
+      
+      // Use a simpler approach with direct rendering
+      const element = document.createElement('div');
+      element.innerHTML = `
+        <!DOCTYPE html>
+        <html>
+        <head>
+          <style>
+            body {
+              font-family: Arial, sans-serif;
+              color: #000000;
+              line-height: 1.6;
+              margin: 0;
+              padding: 20px;
+              background-color: #ffffff;
+            }
+            .container {
+              max-width: 8.5in;
+              margin: 0 auto;
+            }
+            .date {
+              text-align: right;
+              margin-bottom: 30px;
+              color: #000000;
+            }
+            .content {
+              color: #000000;
+            }
+            p {
+              margin-bottom: 16px;
+              color: #000000;
+            }
+          </style>
+        </head>
+        <body>
+          <div class="container">
+            <div class="date">
+              <p>${new Date().toLocaleDateString()}</p>
+            </div>
+            <div class="content">
+              ${coverLetter.split('\n\n').map(para => `<p>${para}</p>`).join('')}
+            </div>
           </div>
-          <div class="content">
-            ${coverLetter.split('\n\n').map(para => `<p>${para}</p>`).join('')}
-          </div>
-        </div>
-      </body>
-      </html>
-    `;
-    
-    document.body.appendChild(element);
-    
-    const opt = {
-      margin: 1,
-      filename: `Cover_Letter_${formState.companyName.replace(/\s+/g, '_')}.pdf`,
-      image: { type: 'jpeg', quality: 1 },
-      html2canvas: { 
-        scale: 2,
-        useCORS: true,
-        letterRendering: true,
-        allowTaint: true
-      },
-      jsPDF: { 
-        unit: 'in', 
-        format: 'letter', 
-        orientation: 'portrait'
-      }
-    };
-    
-    // Process PDF creation
-    html2pdf()
-      .set(opt)
-      .from(element)
-      .save()
-      .then(() => {
-        document.body.removeChild(element);
-      })
-      .catch(err => {
-        console.error("PDF generation error:", err);
-        setError("Failed to generate PDF. Please try again.");
-        document.body.removeChild(element);
-      });
+        </body>
+        </html>
+      `;
+      
+      document.body.appendChild(element);
+      
+      // Fix: Explicitly define orientation as 'portrait' to match the type declaration
+      const opt = {
+        margin: 1,
+        filename: `Cover_Letter_${formState.companyName.replace(/\s+/g, '_')}.pdf`,
+        image: { 
+          type: 'jpeg', 
+          quality: 1 
+        },
+        html2canvas: { 
+          scale: 2,
+          useCORS: true,
+          letterRendering: true,
+          allowTaint: true
+        },
+        jsPDF: { 
+          unit: 'in', 
+          format: 'letter', 
+          orientation: 'portrait' as 'portrait' // Type assertion to explicitly set as 'portrait'
+        }
+      };
+      
+      // Process PDF creation
+      html2pdf()
+        .set(opt)
+        .from(element)
+        .save()
+        .then(() => {
+          document.body.removeChild(element);
+        })
+        .catch(err => {
+          console.error("PDF generation error:", err);
+          setError("Failed to generate PDF. Please try again.");
+          document.body.removeChild(element);
+        });
+    } catch (error) {
+      console.error("Error loading html2pdf:", error);
+      setError("Failed to load PDF generation library. Please try again.");
+    }
   };
 
   const formatCoverLetter = (text: string) => {
@@ -281,7 +303,6 @@ const CoverLetterTab: React.FC<CoverLetterTabProps> = ({ formState, jobId }) => 
                 placeholder="Make any desired edits to your cover letter here..."
               />
             </div>
-
             {/* Formatted display view */}
             <div 
               ref={pdfContainerRef}

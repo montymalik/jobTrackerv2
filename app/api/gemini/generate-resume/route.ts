@@ -2,6 +2,23 @@
 import { NextRequest, NextResponse } from "next/server";
 import fetch from "node-fetch";
 
+// Define types for the Gemini API response
+interface GeminiResponsePart {
+  text: string;
+}
+
+interface GeminiResponseContent {
+  parts: GeminiResponsePart[];
+}
+
+interface GeminiResponseCandidate {
+  content: GeminiResponseContent;
+}
+
+interface GeminiResponse {
+  candidates: GeminiResponseCandidate[];
+}
+
 // Function to call Gemini API using direct fetch approach
 async function callGemini(prompt: string, model: string = 'gemini-2.0-flash-thinking-exp') {
   try {
@@ -35,7 +52,7 @@ async function callGemini(prompt: string, model: string = 'gemini-2.0-flash-thin
       throw new Error("Failed to generate resume.");
     }
     
-    const data = await response.json();
+    const data = await response.json() as GeminiResponse;
     console.log("Gemini API response data:", data);  // Debug log
     
     const message = data.candidates?.[0]?.content?.parts?.[0]?.text;

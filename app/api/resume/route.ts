@@ -212,7 +212,6 @@ async function parseResumeContent(file: File): Promise<ParsedResume> {
   try {
     const buffer = Buffer.from(await file.arrayBuffer());
     let resumeText = '';
-
     // Parse based on file type
     if (file.type === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document') {
       // Parse DOCX
@@ -228,11 +227,9 @@ async function parseResumeContent(file: File): Promise<ParsedResume> {
     } else {
       throw new Error(`Unsupported file type: ${file.type}`);
     }
-
     if (!resumeText || resumeText.trim().length === 0) {
       throw new Error("Failed to extract text from resume file");
     }
-
     // Initialize default return structure with safe defaults
     const parsedResume: ParsedResume = {
       raw: resumeText,
@@ -242,7 +239,6 @@ async function parseResumeContent(file: File): Promise<ParsedResume> {
       experience: [],
       skills: []
     };
-
     try {
       // Try to parse resume sections - if it fails, we at least have the raw text
       parsedResume.sections = identifySections(resumeText);
@@ -289,11 +285,9 @@ export async function GET(request: NextRequest) {
         createdAt: 'desc'
       }
     });
-
     if (!baseResume) {
       return NextResponse.json({ error: "No base resume found" }, { status: 404 });
     }
-
     return NextResponse.json(baseResume);
   } catch (error) {
     console.error("Error fetching base resume:", error);
@@ -308,11 +302,9 @@ export async function POST(request: NextRequest) {
   try {
     const formData = await request.formData();
     const file = formData.get('file') as File;
-
     if (!file) {
       return NextResponse.json({ error: "No file provided" }, { status: 400 });
     }
-
     // Validate file type
     const validTypes = [
       'application/vnd.openxmlformats-officedocument.wordprocessingml.document', // docx
@@ -325,11 +317,9 @@ export async function POST(request: NextRequest) {
         error: "Invalid file type. Please upload a DOCX, PDF, or TXT file." 
       }, { status: 400 });
     }
-
     // Create directory for storing resumes if it doesn't exist
     const uploadDir = path.join(process.cwd(), "public/uploads/resumes");
     await fs.mkdir(uploadDir, { recursive: true });
-
     // Generate a unique filename to prevent overwrites
     const fileExtension = path.extname(file.name);
     const uniqueFileName = `${Date.now()}-${Math.round(Math.random() * 1000)}${fileExtension}`;
@@ -339,9 +329,8 @@ export async function POST(request: NextRequest) {
     savedFilePath = filePath;
     const fileBuffer = Buffer.from(await file.arrayBuffer());
     await fs.writeFile(filePath, fileBuffer);
-
     // Parse resume content
-    let resumeJson;
+    let resumeJson: ParsedResume;
     try {
       resumeJson = await parseResumeContent(file);
     } catch (parseError) {
@@ -357,17 +346,20 @@ export async function POST(request: NextRequest) {
         skills: []
       };
     }
-
+    
+    // Convert the ParsedResume to a plain JavaScript object for Prisma
+    const resumeJsonForPrisma = JSON.parse(JSON.stringify(resumeJson));
+    
     // Save to database
     const baseResume = await prisma.baseResume.create({
       data: {
-        resumeJson,
+        resumeJson: resumeJsonForPrisma,
         fileName: file.name, // Original filename for display
         fileType: file.type,
         filePath: `/uploads/resumes/${uniqueFileName}`, // Path to the saved file
       }
     });
-
+    
     return NextResponse.json({
       id: baseResume.id,
       fileName: baseResume.fileName,
