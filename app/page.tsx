@@ -4,7 +4,7 @@ import { HTML5Backend } from "react-dnd-html5-backend";
 import { useState, useEffect } from "react";
 import { Column } from "./components/jobs/Column";
 import { Modal } from "./components/ui/Modal";
-import { JobForm } from "./components/jobs/JobForm";
+import { JobForm } from "./components/JobForm";
 import { LoadingSpinner } from "./components/ui/LoadingSpinner";
 import { ErrorMessage } from "./components/ui/ErrorMessage";
 import { JobApplication, ApplicationStatus } from "./lib/types";
