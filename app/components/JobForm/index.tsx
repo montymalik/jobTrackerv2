@@ -3,13 +3,13 @@ import { JobFormProps } from "./types";
 import { spinnerStyles } from "./styles";
 import useJobForm from "./hooks/useJobForm";
 import useFileManagement from "./hooks/useFileManagement";
-
 // Tab components
 import DetailsTab from "./tabs/DetailsTab";
 import JobDescriptionTab from "./tabs/JobDescriptionTab";
 import NotesTab from "./tabs/NotesTab";
 import FilesTab from "./tabs/FilesTab";
 import CoverLetterTab from "./tabs/CoverLetterTab";
+import ResumeGeneratorTab from "./tabs/ResumeGeneratorTab";
 
 export function JobForm({ job, onSubmit, onCancel }: JobFormProps) {
   const [activeTab, setActiveTab] = useState("details");
@@ -52,13 +52,14 @@ export function JobForm({ job, onSubmit, onCancel }: JobFormProps) {
     }
   };
 
-  // Navigation items - Make sure this array includes ALL tabs
+  // Navigation items - Now includes the Resume Generator tab
   const navItems = [
     { id: "details", label: "Details", icon: "📋" },
     { id: "jobDescription", label: "Job Description", icon: "📝"},
     { id: "notes", label: "Notes", icon: "📓" },
     { id: "files", label: "Files", icon: "📎" },
     { id: "coverLetter", label: "AI Cover Letter", icon: "✉️" },
+    { id: "resumeGenerator", label: "AI Resume", icon: "📄" },
   ];
   
   return (
@@ -163,6 +164,13 @@ export function JobForm({ job, onSubmit, onCancel }: JobFormProps) {
         
         {activeTab === "coverLetter" && (
           <CoverLetterTab 
+            formState={formState}
+            jobId={job?.id}
+          />
+        )}
+        
+        {activeTab === "resumeGenerator" && (
+          <ResumeGeneratorTab 
             formState={formState}
             jobId={job?.id}
           />
