@@ -192,40 +192,48 @@ const CoverLetterTab: React.FC<CoverLetterTabProps> = ({ formState, jobId }) => 
         <h3 className="text-xl font-semibold text-gray-800 dark:text-gray-200">
           AI Cover Letter Generator
         </h3>
-        <div className="space-x-2">
-          {coverLetter && (
-            <>
-              <button
-                type="button"
-                onClick={copyToClipboard}
-                className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700"
-              >
-                Copy to Clipboard
-              </button>
-              <button
-                type="button"
-                onClick={exportToPDF}
-                className="px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700"
-              >
-                Export as PDF
-              </button>
-            </>
-          )}
+        <div className="flex space-x-3">
           <button
             type="button"
             onClick={generateCoverLetter}
             disabled={isGenerating}
-            className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-70 flex items-center"
+            className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-70 flex items-center justify-center min-w-32"
           >
             {isGenerating ? (
               <>
-                <span className="spinner"></span>
+                <span className="spinner mr-2"></span>
                 Generating...
               </>
             ) : (
               "Generate Cover Letter"
             )}
           </button>
+          
+          {coverLetter && (
+            <>
+              <button
+                type="button"
+                onClick={copyToClipboard}
+                className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 flex items-center justify-center min-w-32"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-1" viewBox="0 0 20 20" fill="currentColor">
+                  <path d="M8 3a1 1 0 011-1h2a1 1 0 110 2H9a1 1 0 01-1-1z" />
+                  <path d="M6 3a2 2 0 00-2 2v11a2 2 0 002 2h8a2 2 0 002-2V5a2 2 0 00-2-2 3 3 0 01-3 3H9a3 3 0 01-3-3z" />
+                </svg>
+                Copy
+              </button>
+              <button
+                type="button"
+                onClick={exportToPDF}
+                className="px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 flex items-center justify-center min-w-32"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-1" viewBox="0 0 20 20" fill="currentColor">
+                  <path fillRule="evenodd" d="M6 2a2 2 0 00-2 2v12a2 2 0 002 2h8a2 2 0 002-2V7.414A2 2 0 0015.414 6L12 2.586A2 2 0 0010.586 2H6zm5 6a1 1 0 10-2 0v3.586l-1.293-1.293a1 1 0 10-1.414 1.414l3 3a1 1 0 001.414 0l3-3a1 1 0 00-1.414-1.414L11 11.586V8z" clipRule="evenodd" />
+                </svg>
+                Export PDF
+              </button>
+            </>
+          )}
         </div>
       </div>
       
@@ -235,9 +243,9 @@ const CoverLetterTab: React.FC<CoverLetterTabProps> = ({ formState, jobId }) => 
         </div>
       )}
       
-      <div className="h-[calc(100vh-240px)] flex flex-col">
+      <div className="h-[calc(100vh-240px)]">
         {!coverLetter && !isGenerating && (
-          <div className="flex-grow flex items-center justify-center bg-gray-50 dark:bg-gray-900 p-8 rounded-md text-center">
+          <div className="h-full flex items-center justify-center bg-gray-50 dark:bg-gray-900 p-8 rounded-md text-center">
             <div>
               <svg 
                 xmlns="http://www.w3.org/2000/svg" 
@@ -259,19 +267,9 @@ const CoverLetterTab: React.FC<CoverLetterTabProps> = ({ formState, jobId }) => 
         )}
         
         {coverLetter && (
-          <div className="flex flex-col h-full">
-            {/* Formatted display view */}
-            <div 
-              ref={pdfContainerRef}
-              className="flex-1 overflow-y-auto bg-white dark:bg-gray-800 p-6 rounded-md border dark:border-gray-700 mb-4"
-            >
-              <div className="prose prose-lg dark:prose-invert max-w-none">
-                {formatCoverLetter(coverLetter)}
-              </div>
-            </div>
-            
+          <div className="flex flex-row h-full space-x-4">
             {/* Editable textarea */}
-            <div className="h-1/2">
+            <div className="w-1/2 flex flex-col">
               <h4 className="text-md font-medium mb-2 text-gray-700 dark:text-gray-300">
                 Edit Cover Letter
               </h4>
@@ -279,9 +277,22 @@ const CoverLetterTab: React.FC<CoverLetterTabProps> = ({ formState, jobId }) => 
                 ref={textAreaRef}
                 value={coverLetter}
                 onChange={(e) => setCoverLetter(e.target.value)}
-                className="w-full h-full p-4 rounded-md border dark:border-gray-700 dark:bg-gray-700 dark:text-gray-100 font-mono resize-none"
+                className="flex-1 p-4 rounded-md border dark:border-gray-700 dark:bg-gray-700 dark:text-gray-100 font-mono resize-none"
                 placeholder="Make any desired edits to your cover letter here..."
               />
+            </div>
+
+            {/* Formatted display view */}
+            <div 
+              ref={pdfContainerRef}
+              className="w-1/2 overflow-y-auto bg-white dark:bg-gray-800 p-6 rounded-md border dark:border-gray-700"
+            >
+              <h4 className="text-md font-medium mb-4 text-gray-700 dark:text-gray-300">
+                Preview
+              </h4>
+              <div className="prose prose-lg dark:prose-invert max-w-none">
+                {formatCoverLetter(coverLetter)}
+              </div>
             </div>
           </div>
         )}
