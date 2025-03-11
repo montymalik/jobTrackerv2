@@ -1,8 +1,10 @@
 import { useState, useEffect, RefObject } from "react";
-import { JobFormProps } from "./types";
+import { JobFormProps, NavigationItem } from "./types";
 import { spinnerStyles } from "./styles";
 import useJobForm from "./hooks/useJobForm";
 import useFileManagement from "./hooks/useFileManagement";
+import useSidebar from "./hooks/useSidebar";
+import useLeftSidebar from "./hooks/useLeftSidebar";
 // Tab components
 import DetailsTab from "./tabs/DetailsTab";
 import JobDescriptionTab from "./tabs/JobDescriptionTab";
@@ -10,7 +12,10 @@ import NotesTab from "./tabs/NotesTab";
 import FilesTab from "./tabs/FilesTab";
 import CoverLetterTab from "./tabs/CoverLetterTab";
 import ResumeGeneratorTab from "./tabs/ResumeGeneratorTab";
-
+// Sidebar components
+import Sidebar from "./Sidebar";
+import SidebarContent from "./Sidebar/SidebarContent";
+import LeftSidebar from "./LeftSidebar";
 export function JobForm({ job, onSubmit, onCancel }: JobFormProps) {
   const [activeTab, setActiveTab] = useState("details");
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -33,6 +38,18 @@ export function JobForm({ job, onSubmit, onCancel }: JobFormProps) {
     setFiles 
   } = useFileManagement(job);
   
+  // Right sidebar state
+  const {
+    isOpen: isRightSidebarOpen,
+    toggleSidebar: toggleRightSidebar
+  } = useSidebar();
+  
+  // Left navigation sidebar state
+  const {
+    isOpen: isLeftSidebarOpen,
+    toggleSidebar: toggleLeftSidebar
+  } = useLeftSidebar();
+  
   useEffect(() => {
     // Add the spinner styles to the document head
     const styleElement = document.createElement('style');
@@ -47,14 +64,21 @@ export function JobForm({ job, onSubmit, onCancel }: JobFormProps) {
     };
   }, []);
   
-  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
+  const handleSubmit = async (e?: React.FormEvent) => {
+    if (e) {
+      e.preventDefault();
+    }
+    
     setIsSubmitting(true);
     try {
       const formData = new FormData();
-      // Append all fields including notes.
+      // Append all fields including notes
       Object.entries(formState).forEach(([key, value]) => {
-        formData.append(key, String(value));
+        if (typeof value === 'boolean') {
+          formData.append(key, value ? 'true' : 'false');
+        } else if (value !== null) {
+          formData.append(key, String(value));
+        }
       });
       
       // Add skills as a comma-separated string
@@ -75,8 +99,8 @@ export function JobForm({ job, onSubmit, onCancel }: JobFormProps) {
     }
   };
   
-  // Navigation items - Now includes the Resume Generator tab
-  const navItems = [
+  // Navigation items
+  const navItems: NavigationItem[] = [
     { id: "details", label: "Details", icon: "📋" },
     { id: "jobDescription", label: "Job Description", icon: "📝"},
     { id: "notes", label: "Notes", icon: "📓" },
@@ -86,121 +110,112 @@ export function JobForm({ job, onSubmit, onCancel }: JobFormProps) {
   ];
   
   return (
-    <form
-      onSubmit={handleSubmit}
-      className="flex rounded-md bg-white dark:bg-gray-800 dark:text-gray-100 overflow-hidden h-full"
-    >
-      {/* Full-height sidebar with icons only - matching main form background with active indicator */}
-      <div className="w-14 bg-white dark:bg-gray-800 h-full flex flex-col justify-between relative border-r border-gray-200 dark:border-gray-700">
-        <div>
-          <div className="flex justify-center items-center h-14 border-b border-gray-200 dark:border-gray-700">
-            <span className="text-base font-bold text-gray-800 dark:text-gray-200">
-              {job ? "✏️" : "➕"}
-            </span>
+    <>
+      {/* Main content */}
+      <div className={`relative min-h-screen bg-white dark:bg-gray-800 dark:text-gray-100 ${isLeftSidebarOpen ? 'lg:ml-72' : ''}`}>
+        <form onSubmit={handleSubmit} className="h-full w-full p-4">
+          <div className="mb-4 flex justify-between items-center pt-12 sm:pt-4">
+            <h1 className="text-xl font-bold ml-14 sm:ml-0">
+              {job ? `Edit Job - ${formState.companyName}` : 'Add New Job'}
+            </h1>
           </div>
-          <ul className="py-2">
-            {navItems.map((item) => (
-              <li key={item.id} className="mb-5 relative">
-                {/* Active indicator - left highlight bar */}
-                {activeTab === item.id && (
-                  <div className="absolute left-0 top-0 w-1 h-full bg-blue-500 rounded-r"></div>
-                )}
-                <button
-                  type="button"
-                  onClick={() => setActiveTab(item.id)}
-                  title={item.label}
-                  className={`w-full flex justify-center items-center p-1 relative ${
-                    activeTab === item.id
-                      ? "text-blue-600 dark:text-blue-400"
-                      : "text-gray-500 hover:text-gray-800 dark:text-gray-400 dark:hover:text-gray-200"
-                  }`}
-                >
-                  {/* Subtle background for active item */}
-                  {activeTab === item.id && (
-                    <div className="absolute inset-0 bg-blue-100 dark:bg-blue-900 dark:bg-opacity-20 opacity-30 rounded-md"></div>
-                  )}
-                  <span className="text-sm relative z-10">{item.icon}</span>
-                </button>
-              </li>
-            ))}
-          </ul>
-        </div>
-        
-        {/* Action Buttons positioned at bottom of sidebar - icons only */}
-        <div className="pb-4">
-          <button
-            type="button"
-            onClick={onCancel}
-            disabled={isSubmitting}
-            title="Cancel"
-            className="w-full flex justify-center text-gray-500 hover:text-gray-800 dark:text-gray-400 dark:hover:text-gray-200 p-1"
-          >
-            <span className="text-sm">❌</span>
-          </button>
-          <button
-            type="submit"
-            disabled={isSubmitting}
-            title={isSubmitting ? "Saving..." : job ? "Update" : "Create"}
-            className="w-full flex justify-center text-gray-500 hover:text-gray-800 dark:text-gray-400 dark:hover:text-gray-200 p-1"
-          >
-            <span className="text-sm">{isSubmitting ? "⏳" : job ? "💾" : "✅"}</span>
-          </button>
-        </div>
+          
+          {/* Content Area */}
+          <div className="w-full">
+            {activeTab === "details" && (
+              <DetailsTab 
+                formState={formState} 
+                handleChange={handleChange} 
+              />
+            )}
+            
+            {activeTab === "jobDescription" && (
+              <JobDescriptionTab 
+                formState={formState}
+                handleChange={handleChange}
+                skills={skills}
+                isAnalyzing={isAnalyzing}
+                analyzeSkills={analyzeSkills}
+              />
+            )}
+            
+            {activeTab === "notes" && (
+              <NotesTab 
+                formState={formState} 
+                handleChange={handleChange} 
+              />
+            )}
+            
+            {activeTab === "files" && (
+              <FilesTab 
+                files={files}
+                existingFiles={existingFiles}
+                fileInputRef={fileInputRef as RefObject<HTMLInputElement>}
+                handleFileUpload={handleFileUpload}
+                handleFileChange={handleFileChange}
+                setFiles={setFiles}
+              />
+            )}
+            
+            {activeTab === "coverLetter" && (
+              <CoverLetterTab 
+                formState={formState}
+                jobId={job?.id}
+              />
+            )}
+            
+            {activeTab === "resumeGenerator" && (
+              <ResumeGeneratorTab 
+                formState={formState}
+                jobId={job?.id}
+              />
+            )}
+          </div>
+          
+          {/* Action buttons for mobile (shown when left sidebar is closed) */}
+          <div className={`mt-6 flex justify-end space-x-3 ${isLeftSidebarOpen ? 'lg:hidden' : ''}`}>
+            <button
+              type="button"
+              onClick={onCancel}
+              disabled={isSubmitting}
+              className="px-4 py-2 bg-gray-200 text-gray-800 rounded-md hover:bg-gray-300 dark:bg-gray-700 dark:text-gray-200 dark:hover:bg-gray-600"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              disabled={isSubmitting}
+              className="px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600 flex items-center"
+            >
+              {isSubmitting && <span className="spinner mr-2"></span>}
+              {isSubmitting ? "Saving..." : job ? "Update" : "Save"}
+            </button>
+          </div>
+        </form>
       </div>
       
-      {/* Content Area */}
-      <div className="flex-1 p-4 overflow-y-auto h-full">
-        {activeTab === "details" && (
-          <DetailsTab 
-            formState={formState} 
-            handleChange={handleChange} 
-          />
-        )}
-        
-        {activeTab === "jobDescription" && (
-          <JobDescriptionTab 
-            formState={formState}
-            handleChange={handleChange}
-            skills={skills}
-            isAnalyzing={isAnalyzing}
-            analyzeSkills={analyzeSkills}
-          />
-        )}
-        
-        {activeTab === "notes" && (
-          <NotesTab 
-            formState={formState} 
-            handleChange={handleChange} 
-          />
-        )}
-        
-        {activeTab === "files" && (
-          <FilesTab 
-            files={files}
-            existingFiles={existingFiles}
-            fileInputRef={fileInputRef as RefObject<HTMLInputElement>}
-            handleFileUpload={handleFileUpload}
-            handleFileChange={handleFileChange}
-            setFiles={setFiles}
-          />
-        )}
-        
-        {activeTab === "coverLetter" && (
-          <CoverLetterTab 
-            formState={formState}
-            jobId={job?.id}
-          />
-        )}
-        
-        {activeTab === "resumeGenerator" && (
-          <ResumeGeneratorTab 
-            formState={formState}
-            jobId={job?.id}
-          />
-        )}
-      </div>
-    </form>
+      {/* Left Navigation Sidebar */}
+      <LeftSidebar 
+        isOpen={isLeftSidebarOpen} 
+        toggleSidebar={toggleLeftSidebar}
+        activeTab={activeTab}
+        setActiveTab={setActiveTab}
+        navItems={navItems}
+        onCancel={onCancel}
+        onSubmit={handleSubmit}
+        isSubmitting={isSubmitting}
+        job={job}
+      />
+      
+      {/* Right Info Sidebar */}
+      <Sidebar isOpen={isRightSidebarOpen} toggleSidebar={toggleRightSidebar}>
+        <SidebarContent 
+          formState={formState}
+          job={job}
+          skills={skills}
+        />
+      </Sidebar>
+    </>
   );
 }
-
 export default JobForm;

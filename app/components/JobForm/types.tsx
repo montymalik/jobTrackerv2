@@ -50,3 +50,44 @@ export interface CoverLetterTabProps {
   formState: FormState;
   jobId?: string;
 }
+
+export interface ResumeGeneratorTabProps {
+  formState: FormState;
+  jobId?: string;
+}
+
+// Right sidebar types
+export interface SidebarProps {
+  isOpen: boolean;
+  toggleSidebar: () => void;
+  children: React.ReactNode;
+}
+
+export interface SidebarContentProps {
+  formState: FormState;
+  job?: JobApplication;
+  skills: string[];
+}
+
+// Left navigation sidebar types
+export interface LeftSidebarProps {
+  isOpen: boolean;
+  toggleSidebar: () => void;
+  activeTab: string;
+  setActiveTab: (tab: string) => void;
+  navItems: Array<{
+    id: string;
+    label: string;
+    icon: string;
+  }>;
+  onCancel: () => void;
+  onSubmit: (e?: React.FormEvent) => void;
+  isSubmitting: boolean;
+  job?: JobApplication;
+}
+
+export interface NavigationItem {
+  id: string;
+  label: string;
+  icon: string;
+}
