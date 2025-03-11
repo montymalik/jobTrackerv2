@@ -1,7 +1,15 @@
-import React from "react";
+import React, { useEffect } from "react";
 import { DetailsTabProps } from "../types";
 
 const DetailsTab: React.FC<DetailsTabProps> = ({ formState, handleChange }) => {
+  // Add debugging for date values
+  useEffect(() => {
+    console.log("Date values in DetailsTab:", {
+      dateSubmitted: formState.dateSubmitted,
+      dateOfInterview: formState.dateOfInterview
+    });
+  }, [formState.dateSubmitted, formState.dateOfInterview]);
+
   return (
     <div className="space-y-4">
       <h3 className="text-xl font-semibold text-gray-800 dark:text-gray-200 mb-4">
@@ -44,6 +52,39 @@ const DetailsTab: React.FC<DetailsTabProps> = ({ formState, handleChange }) => {
             className="w-full rounded-md border dark:border-gray-700 dark:bg-gray-700 dark:text-gray-100"
           />
         </div>
+        
+        {/* Date Submitted Field */}
+        <div>
+          <label className="block text-sm font-medium dark:text-gray-300">
+            Date Submitted
+          </label>
+          <input
+            type="date"
+            name="dateSubmitted"
+            value={formState.dateSubmitted || ''}
+            onChange={handleChange}
+            className="w-full rounded-md border dark:border-gray-700 dark:bg-gray-700 dark:text-gray-100"
+            // Add the key prop to force re-render when the value changes
+            key={`dateSubmitted-${formState.dateSubmitted || 'empty'}`}
+          />
+        </div>
+        
+        {/* Date of Interview Field */}
+        <div>
+          <label className="block text-sm font-medium dark:text-gray-300">
+            Date of Interview
+          </label>
+          <input
+            type="date"
+            name="dateOfInterview"
+            value={formState.dateOfInterview || ''}
+            onChange={handleChange}
+            className="w-full rounded-md border dark:border-gray-700 dark:bg-gray-700 dark:text-gray-100"
+            // Add the key prop to force re-render when the value changes
+            key={`dateOfInterview-${formState.dateOfInterview || 'empty'}`}
+          />
+        </div>
+        
         <div className="flex items-center space-x-4">
           <div className="flex items-center">
             <input

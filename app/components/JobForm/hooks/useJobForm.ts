@@ -3,6 +3,7 @@ import { JobApplication } from "@/app/lib/types";
 import { FormState } from "../types";
 
 export default function useJobForm(job?: JobApplication) {
+  // Initialize form state with empty strings for dates if none provided
   const [formState, setFormState] = useState<FormState>({
     companyName: job?.companyName || "",
     jobTitle: job?.jobTitle || "",
@@ -11,13 +12,29 @@ export default function useJobForm(job?: JobApplication) {
     confirmationReceived: job?.confirmationReceived || false,
     rejectionReceived: job?.rejectionReceived || false,
     notes: job?.notes || "",
+    // For date fields, either use a valid formatted date or empty string
+    dateSubmitted: job?.dateSubmitted ? formatDateOrEmpty(job.dateSubmitted) : "",
+    dateOfInterview: job?.dateOfInterview ? formatDateOrEmpty(job.dateOfInterview) : "",
   });
 
-  // Handle keySkills safely regardless of its presence in the JobApplication type
+  // Helper to format a date or return empty string if invalid
+  function formatDateOrEmpty(dateInput: any): string {
+    try {
+      const date = new Date(dateInput);
+      // Check if the date is valid
+      if (isNaN(date.getTime())) {
+        return "";
+      }
+      // Format as YYYY-MM-DD for date input
+      return date.toISOString().split('T')[0];
+    } catch (e) {
+      console.error("Invalid date:", e);
+      return "";
+    }
+  }
+
   const [skills, setSkills] = useState<string[]>(
-    job && (job as any).keySkills 
-      ? ((job as any).keySkills as string).split(",").map((s) => s.trim()) 
-      : []
+    job && job.keySkills ? job.keySkills.split(",").map((s) => s.trim()) : []
   );
 
   const [isAnalyzing, setIsAnalyzing] = useState(false);
@@ -26,12 +43,50 @@ export default function useJobForm(job?: JobApplication) {
     e: ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
   ) => {
     const { name, value, type } = e.target;
-    const checked = (e.target as HTMLInputElement).checked;
     
-    setFormState((prev) => ({
-      ...prev,
-      [name]: type === "checkbox" ? checked : value,
-    }));
+    if (type === "checkbox") {
+      const checked = (e.target as HTMLInputElement).checked;
+      setFormState((prev) => ({
+        ...prev,
+        [name]: checked
+      }));
+    } else if (type === "date") {
+      // For date inputs, log the value and update state
+      console.log(`Date ${name} changed to:`, value);
+      setFormState((prev) => ({
+        ...prev,
+        [name]: value
+      }));
+    } else {
+      // For all other inputs
+      setFormState((prev) => ({
+        ...prev,
+        [name]: value
+      }));
+    }
+  };
+
+  // Prepare form data for submission
+  const prepareFormData = () => {
+    const formData = new FormData();
+    
+    // Add all non-date fields
+    for (const [key, value] of Object.entries(formState)) {
+      if (key !== 'dateSubmitted' && key !== 'dateOfInterview') {
+        formData.append(key, String(value));
+      }
+    }
+    
+    // Only add date fields if they're not empty
+    if (formState.dateSubmitted) {
+      formData.append('dateSubmitted', new Date(formState.dateSubmitted).toISOString());
+    }
+    
+    if (formState.dateOfInterview) {
+      formData.append('dateOfInterview', new Date(formState.dateOfInterview).toISOString());
+    }
+    
+    return formData;
   };
 
   const analyzeSkills = async () => {
@@ -77,6 +132,7 @@ export default function useJobForm(job?: JobApplication) {
     setSkills,
     handleChange,
     isAnalyzing,
-    analyzeSkills
+    analyzeSkills,
+    prepareFormData
   };
 }

@@ -15,6 +15,8 @@ export interface FormState {
   confirmationReceived: boolean;
   rejectionReceived: boolean;
   notes: string;
+  dateSubmitted: string | null;
+  dateOfInterview: string | null;
 }
 
 export interface DetailsTabProps {

@@ -11,6 +11,7 @@ export interface JobApplication {
   contactInfo?: any;
   hasBeenContacted: boolean;
   files: JobFile[];
+  keySkills?: string;
   notes?: string | null;
   createdAt: Date;
   updatedAt: Date;
