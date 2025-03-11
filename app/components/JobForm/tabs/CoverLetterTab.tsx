@@ -51,12 +51,9 @@ const CoverLetterTab: React.FC<CoverLetterTabProps> = ({ formState, jobId }) => 
       COVER LETTER CUSTOMIZATION:
       Please help me by:
       1. Creating a cover letter that specifically addresses this position
-      2. Opening with a compelling introduction that shows enthusiasm for this specific role
-      3. Highlighting 2-3 key achievements from my resume that directly relate to the job requirements
-      4. Incorporating relevant keywords from the job description
-      5. Explaining why I'm interested in this particular company/role
-      6. Closing with a clear call to action
-      7. Ensuring the overall tone is professional yet conversational
+      2. using my resume, write a very professional cover letter with no flowery or boastful language. only respond with the body of the letter formatted into paragraphs. do not add a greeting or a signature
+      3. Ensuring the overall tone is professional yet conversational
+      4. No more than 300 words
       IMPORTANT: Your response should ONLY contain the final cover letter`;
       
       // Make API call to Gemini
