@@ -1,9 +1,21 @@
 import { useState, useRef, useEffect } from "react";
 import { JobApplication } from "@/app/lib/types";
 
+// Add interface for JobFile
+interface JobFile {
+  id: string;
+  fileName: string;
+  fileType: string;
+  nextcloudPath: string;
+  createdAt?: string;
+  updatedAt?: string;
+  jobApplicationId: string;
+}
+
 export default function useFileManagement(job?: JobApplication) {
   const [files, setFiles] = useState<File[]>([]);
-  const [existingFiles, setExistingFiles] = useState<string[]>([]);
+  // Update type to match the expected JobFile structure
+  const [existingFiles, setExistingFiles] = useState<JobFile[]>([]);
   
   // Correct way to type a ref - it will hold an HTMLInputElement but starts as null
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -19,9 +31,12 @@ export default function useFileManagement(job?: JobApplication) {
   // Function to fetch existing files
   const fetchExistingFiles = async (jobId: string) => {
     try {
-      const response = await fetch(`/api/jobs/${jobId}/files`);
+      // Change the endpoint to use the existing API without /files
+      const response = await fetch(`/api/jobs/${jobId}`);
       if (response.ok) {
         const data = await response.json();
+        // Extract files from the job data
+        console.log("Job data received:", data);
         setExistingFiles(data.files || []);
       }
     } catch (error) {
