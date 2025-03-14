@@ -639,7 +639,7 @@ ${formState.jobDescription}`;
         if (Array.isArray(baseResumeData.skills)) {
           skills = baseResumeData.skills;
         } else if (typeof baseResumeData.skills === 'string') {
-          skills = baseResumeData.skills.split(',').map(s => s.trim());
+          skills = baseResumeData.skills.split(',').map((s: string) => s.trim());
         }
         
         // Get experience - handle various possible formats
