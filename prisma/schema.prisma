@@ -27,6 +27,7 @@ model JobApplication {
   contactInfo          Json?
   hasBeenContacted     Boolean           @default(false)
   files                JobFile[]
+  resumes              GeneratedResume[]  // Add relation to generated resumes
   keySkills            String?
   notes                String?
   createdAt            DateTime           @default(now())
@@ -59,3 +60,17 @@ model BaseResume {
   updatedAt   DateTime  @updatedAt
 }
 
+// New model to store generated resumes
+model GeneratedResume {
+  id               String         @id @default(uuid())
+  markdownContent  String         // Markdown version of the resume
+  version          Int            @default(1)  // To track versions if multiple are generated
+  jobApplicationId String
+  isPrimary        Boolean        @default(true)  // Flag for the main/preferred resume for this application
+  fileName         String?        // Name of exported PDF if saved
+  filePath         String?        // Path to exported PDF if saved
+  createdAt        DateTime       @default(now())
+  updatedAt        DateTime       @updatedAt
+
+  jobApplication   JobApplication @relation(fields: [jobApplicationId], references: [id], onDelete: Cascade)
+}

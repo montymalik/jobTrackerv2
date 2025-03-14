@@ -1,42 +1,18 @@
-// Helper function to format job titles with company and date
-  const formatJobTitle = (line: string, index: number) => {
-    if (!line.includes('|')) {
-      return (
-        <h3 key={index} className="text-lg font-medium text-gray-800 dark:text-gray-200 mt-4 mb-1">
-          {line.substring(4)}
-        </h3>
-      );
-    }
-    
-    // Split the job title line by pipe character
-    const parts = line.substring(4).split('|').map(part => part.trim());
-    
-    if (parts.length < 2) {
-      return (
-        <h3 key={index} className="text-lg font-medium text-gray-800 dark:text-gray-200 mt-4 mb-1">
-          {line.substring(4)}
-        </h3>
-      );
-    }
-    
-    // Format with company name and date range
-    const company = parts[0];
-    const jobTitle = parts[1];
-    const dateRange = parts.length >= 3 ? parts[2] : '';
-    
-    return (
-      <h3 key={index} className="text-lg font-medium text-gray-800 dark:text-gray-200 mt-4 mb-1">
-        <span className="font-semibold">{company}</span>{' | '}
-        <span>{jobTitle}</span>
-        {dateRange && (
-          <span className="float-right text-sm text-gray-600 dark:text-gray-400">
-            {dateRange}
-          </span>
-        )}
-      </h3>
-    );
-  };import React, { useState, useRef, useEffect } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import { FormState } from "../types";
+import SavedResumesComponent from "./SavedResumesComponent";
+
+interface GeneratedResume {
+  id: string;
+  markdownContent: string;
+  version: number;
+  jobApplicationId: string;
+  isPrimary: boolean;
+  fileName: string | null;
+  filePath: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
 
 interface ResumeGeneratorTabProps {
   formState: FormState;
@@ -45,8 +21,11 @@ interface ResumeGeneratorTabProps {
 
 const ResumeGeneratorTab: React.FC<ResumeGeneratorTabProps> = ({ formState, jobId }) => {
   const [isGenerating, setIsGenerating] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
   const [resume, setResume] = useState("");
   const [error, setError] = useState("");
+  const [successMessage, setSuccessMessage] = useState("");
+  const [currentResumeId, setCurrentResumeId] = useState<string | null>(null);
   const textAreaRef = useRef<HTMLTextAreaElement>(null);
   const pdfContainerRef = useRef<HTMLDivElement>(null);
   
@@ -65,6 +44,8 @@ const ResumeGeneratorTab: React.FC<ResumeGeneratorTabProps> = ({ formState, jobI
     }
     setIsGenerating(true);
     setError("");
+    setSuccessMessage("");
+    setCurrentResumeId(null);
     
     try {
       // Get base resume data
@@ -131,6 +112,90 @@ const ResumeGeneratorTab: React.FC<ResumeGeneratorTabProps> = ({ formState, jobI
     }
   };
 
+  // Function to handle when a saved resume is selected
+  const handleSelectResume = (selectedResume: GeneratedResume) => {
+    setResume(selectedResume.markdownContent);
+    setCurrentResumeId(selectedResume.id);
+    setSuccessMessage(`Loaded resume version ${selectedResume.version}`);
+  };
+
+  // Function to save resume to database
+  const saveResume = async () => {
+    if (!resume || !jobId) {
+      setError("No resume content or job ID available to save");
+      console.error("Missing data for save:", { resumeLength: resume?.length, jobId });
+      return;
+    }
+    
+    setIsSaving(true);
+    setError("");
+    setSuccessMessage("");
+    
+    try {
+      console.log("Saving resume for job:", jobId);
+      
+      // If we're updating an existing resume
+      if (currentResumeId) {
+        console.log("Updating existing resume:", currentResumeId);
+        
+        const response = await fetch(`/api/resume/update`, {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            id: currentResumeId,
+            markdownContent: resume
+          }),
+        });
+        
+        console.log("Update response status:", response.status);
+        
+        if (!response.ok) {
+          const errorText = await response.text();
+          console.error("Error response from update API:", errorText);
+          throw new Error(`Failed to update resume: ${errorText}`);
+        }
+        
+        setSuccessMessage("Resume updated successfully!");
+      } else {
+        // Creating a new resume
+        console.log("Creating new resume for job:", jobId);
+        
+        const requestBody = {
+          jobApplicationId: jobId,
+          markdownContent: resume,
+          isPrimary: true
+        };
+        
+        console.log("Save request body:", requestBody);
+        
+        const response = await fetch("/api/resume/save", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(requestBody),
+        });
+        
+        console.log("Save response status:", response.status);
+        
+        if (!response.ok) {
+          const errorText = await response.text();
+          console.error("Error response from save API:", errorText);
+          throw new Error(`Failed to save resume: ${errorText}`);
+        }
+        
+        const newResume = await response.json();
+        console.log("Resume saved successfully:", newResume.id);
+        
+        setCurrentResumeId(newResume.id);
+        setSuccessMessage("Resume saved successfully!");
+      }
+    } catch (error) {
+      console.error("Error in save/update:", error);
+      setError(`Failed to save resume: ${error instanceof Error ? error.message : "Unknown error"}`);
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
   const copyToClipboard = () => {
     if (textAreaRef.current) {
       navigator.clipboard.writeText(textAreaRef.current.value)
@@ -151,6 +216,7 @@ const ResumeGeneratorTab: React.FC<ResumeGeneratorTabProps> = ({ formState, jobI
     }
   };
 
+  // Export to PDF and update filename in database if needed
   const exportToPDF = async () => {
     if (!resume || !isBrowser) return;
     
@@ -339,9 +405,11 @@ const ResumeGeneratorTab: React.FC<ResumeGeneratorTabProps> = ({ formState, jobI
         resumeContent.innerHTML = htmlContent;
       }
       
+      const filename = `Resume_${formState.companyName.replace(/\s+/g, '_')}.pdf`;
+      
       const opt = {
         margin: 0,
-        filename: `Resume_${formState.companyName.replace(/\s+/g, '_')}.pdf`,
+        filename: filename,
         image: { 
           type: 'jpeg', 
           quality: 1 
@@ -366,6 +434,37 @@ const ResumeGeneratorTab: React.FC<ResumeGeneratorTabProps> = ({ formState, jobI
         .save()
         .then(() => {
           document.body.removeChild(element);
+          
+          // If we have a resume ID, update the filename
+          if (currentResumeId) {
+            console.log("Updating filename for resumeId:", currentResumeId);
+            fetch("/api/resume/update-filename", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                resumeId: currentResumeId,
+                fileName: filename
+              })
+            })
+            .then(response => {
+              if (!response.ok) {
+                console.error("Failed to update resume filename. Status:", response.status);
+                return response.text().then(text => {
+                  console.error("Error details:", text);
+                });
+              } else {
+                console.log("Successfully updated resume filename");
+              }
+            })
+            .catch(err => {
+              console.error("Failed to update resume filename:", err);
+            });
+          } 
+          // Or if we have a job ID but no current resume ID, save the resume with the filename
+          else if (jobId) {
+            console.log("No resumeId found, saving resume after PDF export");
+            saveResume();
+          }
         })
         .catch(err => {
           console.error("PDF generation error:", err);
@@ -376,6 +475,45 @@ const ResumeGeneratorTab: React.FC<ResumeGeneratorTabProps> = ({ formState, jobI
       console.error("Error loading html2pdf:", error);
       setError("Failed to load PDF generation library. Please try again.");
     }
+  };
+
+  // Helper function to format job titles with company and date
+  const formatJobTitle = (line: string, index: number) => {
+    if (!line.includes('|')) {
+      return (
+        <h3 key={index} className="text-lg font-medium text-gray-800 dark:text-gray-200 mt-4 mb-1">
+          {line.substring(4)}
+        </h3>
+      );
+    }
+    
+    // Split the job title line by pipe character
+    const parts = line.substring(4).split('|').map(part => part.trim());
+    
+    if (parts.length < 2) {
+      return (
+        <h3 key={index} className="text-lg font-medium text-gray-800 dark:text-gray-200 mt-4 mb-1">
+          {line.substring(4)}
+        </h3>
+      );
+    }
+    
+    // Format with company name and date range
+    const company = parts[0];
+    const jobTitle = parts[1];
+    const dateRange = parts.length >= 3 ? parts[2] : '';
+    
+    return (
+      <h3 key={index} className="text-lg font-medium text-gray-800 dark:text-gray-200 mt-4 mb-1">
+        <span className="font-semibold">{company}</span>{' | '}
+        <span>{jobTitle}</span>
+        {dateRange && (
+          <span className="float-right text-sm text-gray-600 dark:text-gray-400">
+            {dateRange}
+          </span>
+        )}
+      </h3>
+    );
   };
 
   // Enhanced formatter that properly handles markdown
@@ -482,6 +620,16 @@ const ResumeGeneratorTab: React.FC<ResumeGeneratorTabProps> = ({ formState, jobI
     });
   };
 
+  // Clear success message after a delay
+  useEffect(() => {
+    if (successMessage) {
+      const timer = setTimeout(() => {
+        setSuccessMessage("");
+      }, 3000);
+      return () => clearTimeout(timer);
+    }
+  }, [successMessage]);
+
   return (
     <div className="space-y-4">
       <div className="flex justify-between items-center mb-6">
@@ -507,6 +655,28 @@ const ResumeGeneratorTab: React.FC<ResumeGeneratorTabProps> = ({ formState, jobI
           
           {resume && (
             <>
+              {jobId && (
+                <button
+                  type="button"
+                  onClick={saveResume}
+                  disabled={isSaving}
+                  className="px-4 py-2 bg-purple-600 text-white rounded-md hover:bg-purple-700 disabled:opacity-70 flex items-center justify-center min-w-32"
+                >
+                  {isSaving ? (
+                    <>
+                      <span className="spinner mr-2"></span>
+                      Saving...
+                    </>
+                  ) : (
+                    <>
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-1" viewBox="0 0 20 20" fill="currentColor">
+                        <path d="M7.707 10.293a1 1 0 10-1.414 1.414l3 3a1 1 0 001.414 0l3-3a1 1 0 00-1.414-1.414L11 11.586V6h5a2 2 0 012 2v7a2 2 0 01-2 2H4a2 2 0 01-2-2V8a2 2 0 012-2h5v5.586l-1.293-1.293zM9 4a1 1 0 012 0v2H9V4z" />
+                      </svg>
+                      {currentResumeId ? "Update Resume" : "Save Resume"}
+                    </>
+                  )}
+                </button>
+              )}
               <button
                 type="button"
                 onClick={copyToClipboard}
@@ -538,6 +708,15 @@ const ResumeGeneratorTab: React.FC<ResumeGeneratorTabProps> = ({ formState, jobI
           {error}
         </div>
       )}
+      
+      {successMessage && (
+        <div className="p-4 bg-green-100 border border-green-400 text-green-700 rounded-md mb-4">
+          {successMessage}
+        </div>
+      )}
+      
+      {/* Saved Resumes component - only show if we have a job ID */}
+      {jobId && <SavedResumesComponent jobId={jobId} onSelectResume={handleSelectResume} />}
       
       <div className="h-[calc(100vh-240px)]">
         {!resume && !isGenerating && (
