@@ -1,16 +1,5 @@
 import React, { useState, useEffect, useRef } from "react";
-
-interface GeneratedResume {
-  id: string;
-  markdownContent: string;
-  version: number;
-  jobApplicationId: string;
-  isPrimary: boolean;
-  fileName: string | null;
-  filePath: string | null;
-  createdAt: string;
-  updatedAt: string;
-}
+import { GeneratedResume } from "../types";
 
 interface ResumeEditModalProps {
   resume: GeneratedResume | null;

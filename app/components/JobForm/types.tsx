@@ -19,6 +19,18 @@ export interface FormState {
   dateOfInterview: string | null;
 }
 
+export interface GeneratedResume {
+  id: string;
+  markdownContent: string;
+  version: number;
+  jobApplicationId: string;
+  isPrimary: boolean;
+  fileName: string | null;
+  filePath: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
 export interface DetailsTabProps {
   formState: FormState;
   handleChange: (e: ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => void;
@@ -54,6 +66,15 @@ export interface CoverLetterTabProps {
 export interface ResumeGeneratorTabProps {
   formState: FormState;
   jobId?: string;
+  onResumeGenerated?: (resumeId: string | null) => void;
+  selectedResume?: GeneratedResume | null;
+}
+
+export interface SavedResumesTabProps {
+  jobId?: string;
+  onSelectResume?: (resume: GeneratedResume) => void;
+  onViewInEditor?: (resume: GeneratedResume) => void;
+  currentResumeId?: string | null;
 }
 
 export interface AIToolsTabProps {

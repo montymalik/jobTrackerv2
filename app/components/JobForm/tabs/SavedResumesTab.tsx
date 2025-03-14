@@ -1,25 +1,13 @@
 import React, { useState, useEffect } from "react";
 import ResumeEditModal from "./ResumeEditModal";
+import { GeneratedResume, SavedResumesTabProps } from "../types";
 
-interface GeneratedResume {
-  id: string;
-  markdownContent: string;
-  version: number;
-  jobApplicationId: string;
-  isPrimary: boolean;
-  fileName: string | null;
-  filePath: string | null;
-  createdAt: string;
-  updatedAt: string;
-}
-
-interface SavedResumesTabProps {
-  jobId?: string;
-  onSelectResume?: (resume: GeneratedResume) => void;
-  onViewInEditor?: (resume: GeneratedResume) => void;
-}
-
-const SavedResumesTab: React.FC<SavedResumesTabProps> = ({ jobId, onSelectResume, onViewInEditor }) => {
+const SavedResumesTab: React.FC<SavedResumesTabProps> = ({ 
+  jobId, 
+  onSelectResume, 
+  onViewInEditor, 
+  currentResumeId 
+}) => {
   const [resumes, setResumes] = useState<GeneratedResume[]>([]);
   const [loading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
@@ -262,7 +250,7 @@ const SavedResumesTab: React.FC<SavedResumesTabProps> = ({ jobId, onSelectResume
                 </thead>
                 <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
                   {resumes.map((resume) => (
-                    <tr key={resume.id} className="hover:bg-gray-50 dark:hover:bg-gray-700">
+                    <tr key={resume.id} className={`hover:bg-gray-50 dark:hover:bg-gray-700 ${resume.id === currentResumeId ? 'bg-blue-50 dark:bg-blue-900/20' : ''}`}>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <div className="text-sm font-medium text-gray-900 dark:text-gray-100">
                           {resume.fileName || `Resume ${resume.version}`}
@@ -295,6 +283,7 @@ const SavedResumesTab: React.FC<SavedResumesTabProps> = ({ jobId, onSelectResume
                             onClick={() => handleSelectResume(resume)}
                             className="text-indigo-600 hover:text-indigo-900 dark:text-indigo-400 dark:hover:text-indigo-300"
                             title="Select Resume"
+                            type="button"
                           >
                             <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
                               <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />

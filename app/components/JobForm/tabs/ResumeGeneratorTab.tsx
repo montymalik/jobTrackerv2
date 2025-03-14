@@ -1,25 +1,12 @@
 import React, { useState, useRef, useEffect } from "react";
-import { FormState } from "../types";
+import { FormState, GeneratedResume, ResumeGeneratorTabProps } from "../types";
 
-interface GeneratedResume {
-  id: string;
-  markdownContent: string;
-  version: number;
-  jobApplicationId: string;
-  isPrimary: boolean;
-  fileName: string | null;
-  filePath: string | null;
-  createdAt: string;
-  updatedAt: string;
-}
-
-interface ResumeGeneratorTabProps {
-  formState: FormState;
-  jobId?: string;
-  onResumeGenerated?: (resumeId: string | null) => void;
-}
-
-const ResumeGeneratorTab: React.FC<ResumeGeneratorTabProps> = ({ formState, jobId, onResumeGenerated }) => {
+const ResumeGeneratorTab: React.FC<ResumeGeneratorTabProps> = ({ 
+  formState, 
+  jobId, 
+  onResumeGenerated,
+  selectedResume 
+}) => {
   const [isGenerating, setIsGenerating] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [resume, setResume] = useState("");
@@ -36,6 +23,15 @@ const ResumeGeneratorTab: React.FC<ResumeGeneratorTabProps> = ({ formState, jobI
   useEffect(() => {
     setIsBrowser(true);
   }, []);
+  
+  // Load selected resume when it changes
+  useEffect(() => {
+    if (selectedResume) {
+      setResume(selectedResume.markdownContent);
+      setCurrentResumeId(selectedResume.id);
+      setSuccessMessage(`Loaded resume "${selectedResume.fileName || `Version ${selectedResume.version}`}"`);
+    }
+  }, [selectedResume]);
 
   // Notify parent component when resume ID changes
   useEffect(() => {
@@ -117,13 +113,6 @@ const ResumeGeneratorTab: React.FC<ResumeGeneratorTabProps> = ({ formState, jobI
     } finally {
       setIsGenerating(false);
     }
-  };
-  
-  // Function to load a saved resume
-  const loadResume = (selectedResume: GeneratedResume) => {
-    setResume(selectedResume.markdownContent);
-    setCurrentResumeId(selectedResume.id);
-    setSuccessMessage(`Loaded resume version ${selectedResume.version}`);
   };
   
   // Function to save resume to database

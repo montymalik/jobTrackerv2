@@ -19,18 +19,8 @@ import Sidebar from "./Sidebar";
 import SidebarContent from "./Sidebar/SidebarContent";
 import LeftSidebar from "./LeftSidebar";
 
-// Define resume interface
-interface GeneratedResume {
-  id: string;
-  markdownContent: string;
-  version: number;
-  jobApplicationId: string;
-  isPrimary: boolean;
-  fileName: string | null;
-  filePath: string | null;
-  createdAt: string;
-  updatedAt: string;
-}
+// Define resume interface from types
+import { GeneratedResume } from "./types";
 
 export function JobForm({ job, onSubmit, onCancel }: JobFormProps) {
   const [activeTab, setActiveTab] = useState("details");
