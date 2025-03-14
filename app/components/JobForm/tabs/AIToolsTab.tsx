@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 
 interface AIToolsTabProps {
   formState: {
@@ -6,6 +6,215 @@ interface AIToolsTabProps {
   };
   jobId?: string;
 }
+
+// Helper function to extract suggestions from analysis text
+const extractSuggestions = (analysisText: string): string[] => {
+  if (!analysisText) return [];
+  
+  const suggestions: string[] = [];
+  
+  // Look for sections that typically contain suggestions
+  const lines = analysisText.split('\n');
+  let inSuggestionsSection = false;
+  let currentNumberedItem = "";
+  let currentNumber = 0;
+  
+  // First, check if there's a numbered list format (very common for recommendations)
+  const numberedSuggestions: string[] = [];
+  for (const line of lines) {
+    // Look for numbered items like "1." or "1:" or "1 -"
+    const numberedMatch = line.match(/^(\d+)[\.\:\-]\s+(.+)/);
+    if (numberedMatch) {
+      const number = parseInt(numberedMatch[1]);
+      const content = numberedMatch[2].trim();
+      
+      // If this is a new numbered item
+      if (currentNumberedItem && number !== currentNumber) {
+        numberedSuggestions.push(currentNumberedItem);
+        currentNumberedItem = content;
+        currentNumber = number;
+      } else if (!currentNumberedItem) {
+        currentNumberedItem = content;
+        currentNumber = number;
+      } else {
+        // Continuation of current numbered item
+        currentNumberedItem += " " + content;
+      }
+    } 
+    // Check if this is a continuation of the current numbered item
+    else if (currentNumberedItem && !numberedMatch && !line.trim().match(/^\d+[\.\:\-]/) && line.trim()) {
+      currentNumberedItem += " " + line.trim();
+    }
+    // If we have an empty line, save the current numbered item
+    else if (currentNumberedItem && !line.trim()) {
+      numberedSuggestions.push(currentNumberedItem);
+      currentNumberedItem = "";
+    }
+  }
+  
+  // Add the last numbered item if there is one
+  if (currentNumberedItem) {
+    numberedSuggestions.push(currentNumberedItem);
+  }
+  // If we found a good numbered list, use it
+  if (numberedSuggestions.length >= 2) {
+    for (const suggestion of numberedSuggestions) {
+      // If suggestion has secondary titles like "TITLE: content", split them into multiple suggestions
+      const titleMatch = suggestion.match(/^([^:]+):\s*(.+)/);
+      if (titleMatch) {
+        const title = titleMatch[1].trim();
+        const content = titleMatch[2].trim();
+        
+        // For each sentence in the content, create a more specific suggestion
+        const sentences = content.split(/\.\s+/);
+        for (const sentence of sentences) {
+          if (sentence.length > 10) {
+            suggestions.push(`${title}: ${sentence}`);
+          }
+        }
+      } else {
+        suggestions.push(suggestion);
+      }
+    }
+    
+    // If we've found good numbered suggestions, return them
+    if (suggestions.length > 0) {
+      return suggestions;
+    }
+  }
+  
+  // Section-based extraction as fallback
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i];
+    const lowerLine = line.toLowerCase();
+    
+    // Check for suggestion section headers
+    if (lowerLine.includes("recommendation") || 
+        lowerLine.includes("suggested") ||
+        lowerLine.includes("suggestion") || 
+        lowerLine.includes("action") ||
+        lowerLine.includes("improve") || 
+        lowerLine.includes("missing") ||
+        lowerLine.includes("to address") ||
+        (lowerLine.includes("area") && lowerLine.includes("focus"))) {
+      inSuggestionsSection = true;
+      continue;
+    }
+    
+    // Exit suggestion section when we hit another major header
+    if (inSuggestionsSection && line.match(/^#+\s+/) && i > 0) {
+      inSuggestionsSection = false;
+    }
+    
+    // Collect suggestions while in the right section
+    if (inSuggestionsSection) {
+      // Try to find bullet points
+      if (line.trim().match(/^[\-\*\•]\s+/)) {
+        const suggestion = line.trim().replace(/^[\-\*\•]\s+/, "");
+        if (suggestion.length > 10) {
+          suggestions.push(suggestion);
+        }
+      }
+      // Look for bold text which often indicates important suggestions
+      else if (line.includes("**")) {
+        const boldMatches = line.match(/\*\*([^*]+)\*\*/g);
+        if (boldMatches) {
+          const suggestion = line.trim();
+          if (suggestion.length > 10) {
+            suggestions.push(suggestion);
+          }
+        }
+      }
+      // Look for lines starting with action verbs like "Add", "Include", etc.
+      else if (line.trim().match(/^(Add|Include|Update|Highlight|Emphasize|Focus|Strengthen|Incorporate|Refine|Address|Improve|Mention|Rephrase)\b/i)) {
+        const suggestion = line.trim();
+        if (suggestion.length > 10) {
+          suggestions.push(suggestion);
+        }
+      }
+    }
+  }
+  
+  // Look for specific sections that contain improvements
+  const sections = analysisText.split(/\n\s*\n/); // Split by empty lines
+  for (const section of sections) {
+    if (section.toLowerCase().includes("improve") || 
+        section.toLowerCase().includes("recommended") ||
+        section.toLowerCase().includes("suggestion") ||
+        section.toLowerCase().includes("action")) {
+      
+      // Get bullet points or numbered items
+      const bulletMatch = section.match(/[\-\*\•]\s+([^\n]+)/g);
+      if (bulletMatch) {
+        for (const bullet of bulletMatch) {
+          const suggestion = bullet.replace(/^[\-\*\•]\s+/, "").trim();
+          if (suggestion.length > 10 && !suggestions.includes(suggestion)) {
+            suggestions.push(suggestion);
+          }
+        }
+      }
+      
+      // Check for bold sections
+      const boldMatch = section.match(/\*\*([^*]+)\*\*/g);
+      if (boldMatch && boldMatch.length > 0) {
+        // Extract the whole line containing bold text
+        const lines = section.split('\n');
+        for (const line of lines) {
+          if (line.includes("**") && line.length > 10 && !suggestions.includes(line.trim())) {
+            suggestions.push(line.trim());
+          }
+        }
+      }
+    }
+  }
+  
+  // If we still don't have enough suggestions, try to find more specific recommendations
+  if (suggestions.length < 3) {
+    // Look for specific recommendation patterns
+    for (const line of lines) {
+      // Look for lines with strong recommendation language
+      if (line.match(/\b(should|must|need|recommend|suggest|important|critical|key|essential)\b/i) &&
+          line.length > 20 && !line.startsWith('#') && !suggestions.includes(line.trim())) {
+        suggestions.push(line.trim());
+      }
+      
+      // Look for specific sections like "Title: content" which often contain recommendations
+      const titleMatch = line.match(/^([A-Z][^:]{3,}):\s*(.+)/);
+      if (titleMatch && titleMatch[2].length > 15 && !suggestions.includes(line.trim())) {
+        suggestions.push(line.trim());
+      }
+    }
+  }
+  
+  // Deduplicate and clean up suggestions
+  return [...new Set(suggestions)]
+    .map(s => s.replace(/^\d+\.\s*/, "")) // Remove leading numbers
+    .filter(s => s.length > 10); // Only keep substantial suggestions
+};
+
+// Modified prompt for better structured analysis output
+const createMatchAnalysisPrompt = (jobDescription: string, resumeText: string) => {
+  return `As an experienced Applicant Tracking System (ATS) analyst,
+with profound knowledge in technology, software engineering, data science, full stack web development, cloud engineering, 
+and technical customer success, your role involves evaluating resumes against job descriptions.
+I need a detailed, actionable analysis of this resume against the given job description:
+===== JOB DESCRIPTION =====
+${jobDescription}
+===== END JOB DESCRIPTION =====
+===== RESUME =====
+${resumeText}
+===== END RESUME =====
+Please structure your response with the following sections:
+1. MATCH PERCENTAGE: Provide an overall percentage match score (e.g., 75%)
+2. KEY THEMES IDENTIFIED: List 3-5 key themes or skills from the job description
+3. STRENGTHS: Identify 2-3 areas where the resume aligns well with the job requirements
+4. ACTIONABLE RESUME IMPROVEMENT RECOMMENDATIONS:
+   - List 3-5 specific improvements numbered from 1-5
+   - For each improvement, include specific sections to modify and suggested content changes
+   - Use clear, actionable language starting with verbs (Add, Update, Highlight, etc.)
+5. MISSING KEYWORDS: List important keywords from the job description missing from the resume
+FORMAT YOUR RECOMMENDATIONS AS A NUMBERED LIST (1., 2., etc.) with clear, specific actions.`;
+};
 
 // A simplified, direct approach to formatting the resume analysis
 const formatAnalysisOutput = (text: string) => {
@@ -133,6 +342,94 @@ const formatAnalysisOutput = (text: string) => {
   return html;
 };
 
+// Format markdown content for display
+const formatMarkdown = (markdown: string) => {
+  if (!markdown) return null;
+  
+  const lines = markdown.split('\n');
+  const formattedContent: React.ReactNode[] = [];
+  let listItems: React.ReactNode[] = [];
+  
+  lines.forEach((line, index) => {
+    const trimmedLine = line.trim();
+    
+    if (!trimmedLine) {
+      // Empty line - if we were building a list, close it
+      if (listItems.length > 0) {
+        formattedContent.push(
+          <ul key={`list-${index}`} className="list-disc pl-5 my-2">
+            {listItems}
+          </ul>
+        );
+        listItems = [];
+      }
+      return;
+    }
+    
+    // Process headings
+    if (trimmedLine.startsWith('# ')) {
+      formattedContent.push(
+        <h1 key={index} className="text-2xl font-bold text-center text-gray-800 dark:text-gray-200 mt-4 mb-2">
+          {trimmedLine.substring(2)}
+        </h1>
+      );
+    }
+    else if (trimmedLine.startsWith('## ')) {
+      formattedContent.push(
+        <h2 key={index} className="text-xl font-semibold text-gray-800 dark:text-gray-200 mt-5 mb-2 pb-1 border-b dark:border-gray-700">
+          {trimmedLine.substring(3)}
+        </h2>
+      );
+    }
+    else if (trimmedLine.startsWith('### ')) {
+      formattedContent.push(
+        <h3 key={index} className="text-lg font-medium text-gray-800 dark:text-gray-200 mt-4 mb-1">
+          {trimmedLine.substring(4)}
+        </h3>
+      );
+    }
+    // Process bullet points
+    else if (trimmedLine.startsWith('- ') || trimmedLine.startsWith('* ')) {
+      const content = trimmedLine.substring(2);
+      
+      listItems.push(
+        <li key={`item-${index}`} className="mb-1 text-gray-700 dark:text-gray-300">
+          {content}
+        </li>
+      );
+    }
+    // Process normal paragraphs
+    else {
+      // If we were building a list, close it before adding a paragraph
+      if (listItems.length > 0) {
+        formattedContent.push(
+          <ul key={`list-${index}`} className="list-disc pl-5 my-2">
+            {listItems}
+          </ul>
+        );
+        listItems = [];
+      }
+      
+      formattedContent.push(
+        <p key={index} className="mb-3 text-gray-700 dark:text-gray-300">
+          {trimmedLine}
+        </p>
+      );
+    }
+  });
+  
+  // If we have any remaining list items, add them
+  if (listItems.length > 0) {
+    formattedContent.push(
+      <ul className="list-disc pl-5 my-2">
+        {listItems}
+      </ul>
+    );
+  }
+  
+  return formattedContent;
+};
+
 const AIToolsTab: React.FC<AIToolsTabProps> = ({ formState, jobId }) => {
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [analysisResult, setAnalysisResult] = useState<string | null>(null);
@@ -140,11 +437,26 @@ const AIToolsTab: React.FC<AIToolsTabProps> = ({ formState, jobId }) => {
   const [error, setError] = useState<string | null>(null);
   const [resumeData, setResumeData] = useState<any>(null);
   const [primaryResume, setPrimaryResume] = useState<any>(null);
+  const [suggestions, setSuggestions] = useState<string[]>([]);
+  const [isUpdating, setIsUpdating] = useState(false);
+  const [updateSuccess, setUpdateSuccess] = useState(false);
+  
+  // State for the improved resume editing feature
+  const [showImprovedResume, setShowImprovedResume] = useState(false);
+  const [improvedResumeContent, setImprovedResumeContent] = useState("");
+  const [isSaving, setIsSaving] = useState(false);
+  const [saveSuccess, setSaveSuccess] = useState(false);
+  const [aiResumeCount, setAiResumeCount] = useState(0);
+  const improvedResumeRef = useRef<HTMLTextAreaElement>(null);
 
   // Format analysis result when it changes
   useEffect(() => {
     if (analysisResult) {
       setFormattedResult(formatAnalysisOutput(analysisResult));
+      
+      // Extract suggestions from the analysis
+      const extractedSuggestions = extractSuggestions(analysisResult);
+      setSuggestions(extractedSuggestions);
     }
   }, [analysisResult]);
 
@@ -177,6 +489,11 @@ const AIToolsTab: React.FC<AIToolsTabProps> = ({ formState, jobId }) => {
           if (primary) {
             setPrimaryResume(primary);
           }
+          
+          // Count AI resumes to determine next version number
+          const aiResumes = resumes.filter((r: any) => 
+            r.fileName && r.fileName.startsWith('AI Resume V'));
+          setAiResumeCount(aiResumes.length);
         }
       } catch (error) {
         console.error("Error fetching job resumes:", error);
@@ -187,12 +504,28 @@ const AIToolsTab: React.FC<AIToolsTabProps> = ({ formState, jobId }) => {
     fetchJobResumes();
   }, [jobId]);
 
+  // Clear success messages after a delay
+  useEffect(() => {
+    if (updateSuccess) {
+      const timer = setTimeout(() => {
+        setUpdateSuccess(false);
+      }, 3000);
+      return () => clearTimeout(timer);
+    }
+    
+    if (saveSuccess) {
+      const timer = setTimeout(() => {
+        setSaveSuccess(false);
+      }, 3000);
+      return () => clearTimeout(timer);
+    }
+  }, [updateSuccess, saveSuccess]);
+
   const analyzeResumeMatch = async () => {
     if (!formState.jobDescription) {
       setError("Please provide a job description in the Job Description tab.");
       return;
     }
-
     if (!resumeData && !primaryResume) {
       setError("No resume found. Please upload a base resume or create a resume for this job.");
       return;
@@ -202,6 +535,7 @@ const AIToolsTab: React.FC<AIToolsTabProps> = ({ formState, jobId }) => {
     setError(null);
     setAnalysisResult(null);
     setFormattedResult(null);
+    setSuggestions([]);
 
     try {
       // Use the job-specific resume if available, otherwise fall back to base resume
@@ -216,11 +550,31 @@ const AIToolsTab: React.FC<AIToolsTabProps> = ({ formState, jobId }) => {
         resumeContent = JSON.stringify(resumeData);
       }
 
+      // Create an enhanced prompt that includes both the job description and instructions
+      // but keep the API parameters the same as they were before
+      const enhancedPrompt = `As an experienced Applicant Tracking System (ATS) analyst,
+with profound knowledge in technology, software engineering, data science, full stack web development, cloud engineering, 
+and technical customer success, your role involves evaluating resumes against job descriptions.
+I need a detailed, actionable analysis of this resume against the given job description.
+Please structure your response with the following sections:
+1. MATCH PERCENTAGE: Provide an overall percentage match score (e.g., 75%)
+2. KEY THEMES IDENTIFIED: List 3-5 key themes or skills from the job description
+3. STRENGTHS: Identify 2-3 areas where the resume aligns well with the job requirements
+4. ACTIONABLE RESUME IMPROVEMENT RECOMMENDATIONS:
+   - List 3-5 specific improvements numbered from 1-5
+   - For each improvement, include specific sections to modify and suggested content changes
+   - Use clear, actionable language starting with verbs (Add, Update, Highlight, etc.)
+5. MISSING KEYWORDS: List important keywords from the job description missing from the resume
+FORMAT YOUR RECOMMENDATIONS AS A NUMBERED LIST (1., 2., etc.) with clear, specific actions.
+The job description is:
+${formState.jobDescription}`;
+
+      // Keep the API call structure the same - don't change parameter names
       const response = await fetch("/api/resume/resume-match-analysis", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          jobDescription: formState.jobDescription,
+          jobDescription: enhancedPrompt,
           resumeText: resumeContent,
           jobId: jobId || "temp-id"
         }),
@@ -240,12 +594,279 @@ const AIToolsTab: React.FC<AIToolsTabProps> = ({ formState, jobId }) => {
       setIsAnalyzing(false);
     }
   };
-
+  
+  const updateResumeWithSuggestions = async () => {
+    if (!jobId) {
+      setError("Cannot update resume: Missing job ID.");
+      console.error("Missing job ID for resume update");
+      return;
+    }
+    
+    if (!primaryResume && !resumeData) {
+      setError("Cannot update resume: No resume data available.");
+      console.error("No resume data available for update");
+      return;
+    }
+    
+    setIsUpdating(true);
+    setError(null);
+    
+    try {
+      console.log("Starting resume update process with suggestions:", suggestions);
+      
+      // Get the resume content to update
+      let resumeContent = "";
+      
+      if (primaryResume && primaryResume.markdownContent) {
+        console.log("Using primary resume as base for new resume:", primaryResume.id);
+        resumeContent = primaryResume.markdownContent;
+      } else if (resumeData) {
+        console.log("Using base resume data (converting to markdown)");
+        // For JSON resume data, we need to convert it to markdown first
+        
+        // Get resume data - this should be available in state
+        const baseResumeData = resumeData;
+        console.log("Base resume data:", baseResumeData);
+        
+        // Sanitize and ensure we have valid data
+        const name = baseResumeData.name || baseResumeData.contactInfo?.name || "Your Name";
+        const email = baseResumeData.email || baseResumeData.contactInfo?.email || "";
+        const phone = baseResumeData.phone || baseResumeData.contactInfo?.phone || "";
+        const location = baseResumeData.location || baseResumeData.contactInfo?.location || "";
+        
+        // Get skills - handle various possible formats
+        let skills = [];
+        if (Array.isArray(baseResumeData.skills)) {
+          skills = baseResumeData.skills;
+        } else if (typeof baseResumeData.skills === 'string') {
+          skills = baseResumeData.skills.split(',').map(s => s.trim());
+        }
+        
+        // Get experience - handle various possible formats
+        let experience = [];
+        if (baseResumeData.experience) {
+          experience = Array.isArray(baseResumeData.experience) ? baseResumeData.experience : [baseResumeData.experience];
+        }
+        
+        // Get education - handle various possible formats
+        let education = [];
+        if (baseResumeData.education) {
+          education = Array.isArray(baseResumeData.education) ? baseResumeData.education : [baseResumeData.education];
+        }
+        
+        // Generate markdown content from the base resume
+        resumeContent = `# ${name}
+${email}${email && phone ? ' | ' : ''}${phone}${(email || phone) && location ? ' | ' : ''}${location}
+## PROFESSIONAL SUMMARY
+Professional with experience in technology and development.
+## SKILLS
+${skills.join(", ")}
+## EXPERIENCE
+${experience.map((exp: any) => 
+  `### ${exp.company || exp.title || 'Company'} | ${exp.position || exp.role || 'Position'} | ${exp.duration || exp.dates || ''}
+${exp.description || exp.achievements || ''}
+`).join("\n")}
+## EDUCATION
+${education.map((edu: any) => 
+  `### ${edu.institution || edu.school || 'Institution'}
+${edu.degree || edu.qualification || 'Degree'} (${edu.date || edu.dates || ''})
+`).join("\n")}`;
+        console.log("Generated markdown from base resume:", resumeContent.substring(0, 100) + "...");
+      }
+      
+      if (!resumeContent) {
+        throw new Error("Could not generate valid resume content for updating");
+      }
+      
+      // Format suggestions for the prompt
+      const suggestionsText = suggestions.length > 0 
+        ? suggestions.map(suggestion => `- ${suggestion}`).join("\n")
+        : "- Add industry-specific keywords from the job description\n- Tailor your resume to highlight relevant experience\n- Quantify your achievements with specific metrics";
+      
+      console.log("Using suggestions:", suggestionsText);
+      
+      // Create prompt for AI to improve resume
+      const prompt = `I need to improve my resume based on a job application analysis. Here's my current resume:
+${resumeContent}
+The analysis suggested the following improvements:
+${suggestionsText}
+Please update my resume to incorporate these suggestions. Make specific changes:
+1. Add relevant keywords from the suggestions to the skills section
+2. Enhance job descriptions to highlight relevant experience 
+3. Update the summary to better align with the job requirements
+4. Keep the same markdown format structure and section organization
+5. Do not create any new sections
+Return ONLY the updated resume in markdown format.`;
+      console.log("Generated prompt for resume improvement");
+      
+      // Call Gemini API to generate improved resume
+      console.log("Calling Gemini API to generate improved resume");
+      const response = await fetch("/api/gemini/generate-resume", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          prompt,
+          jobId: jobId,
+          model: "gemini-2.0-flash-thinking-exp"
+        }),
+      });
+      
+      console.log("Gemini API response status:", response.status);
+      
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error("Error response from Gemini API:", errorText);
+        throw new Error(`Failed to generate improved resume: ${errorText}`);
+      }
+      
+      const data = await response.json();
+      console.log("Gemini API response received");
+      
+      const improvedResume = data.resume || "";
+      
+      if (!improvedResume) {
+        console.error("No resume content in Gemini response");
+        throw new Error("Failed to generate improved resume content");
+      }
+      
+      console.log("Improved resume length:", improvedResume.length);
+      console.log("First 100 chars:", improvedResume.substring(0, 100));
+      
+      // Set the improved resume content for display and editing
+      setImprovedResumeContent(improvedResume);
+      setShowImprovedResume(true);
+      
+      // We no longer save here - just set the content and show the editor
+      setUpdateSuccess(true);
+      
+    } catch (error) {
+      console.error("Error updating resume with suggestions:", error);
+      setError(`Failed to create improved resume: ${error instanceof Error ? error.message : "Unknown error"}`);
+    } finally {
+      setIsUpdating(false);
+    }
+  };
+  
+  // Modified function to save the resume with proper versioning
+  const saveEditedResume = async () => {
+    if (!jobId || !improvedResumeContent) {
+      setError("Cannot save resume: Missing job ID or resume content.");
+      return;
+    }
+    
+    setIsSaving(true);
+    setError(null);
+    
+    try {
+      // Calculate next version number
+      const nextVersion = aiResumeCount + 1;
+      const fileName = `AI Resume V${nextVersion}`;
+      
+      console.log(`Creating new resume with version: ${fileName}`);
+      const saveResponse = await fetch("/api/resume/save", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          jobApplicationId: jobId,
+          markdownContent: improvedResumeContent,
+          isPrimary: false, // Don't set as primary to avoid overwriting current primary
+          fileName: fileName,
+        }),
+      });
+      
+      if (!saveResponse.ok) {
+        const errorText = await saveResponse.text();
+        throw new Error(`Failed to save resume: ${errorText}`);
+      }
+      
+      // Update the AI resume count
+      setAiResumeCount(nextVersion);
+      setSaveSuccess(true);
+      
+      // Fetch updated resumes
+      const updatedResumeResponse = await fetch(`/api/resume/get-for-job?jobId=${jobId}`);
+      if (updatedResumeResponse.ok) {
+        const resumes = await updatedResumeResponse.json();
+        console.log("Fetched resumes:", resumes.length);
+      }
+    } catch (error) {
+      console.error("Error saving edited resume:", error);
+      setError(`Failed to save resume: ${error instanceof Error ? error.message : "Unknown error"}`);
+    } finally {
+      setIsSaving(false);
+    }
+  };
+  
   return (
     <div className="space-y-4">
       <h3 className="text-xl font-semibold text-gray-800 dark:text-gray-200 mb-4">
         AI Resume Analysis
       </h3>
+      
+      {/* Resume editor section - appears after applying AI improvements */}
+      {showImprovedResume && (
+        <div className="bg-white dark:bg-gray-800 rounded-lg p-6 shadow-sm border dark:border-gray-700 mb-6">
+          <h4 className="text-lg font-semibold text-gray-800 dark:text-gray-200 mb-4">
+            New AI-Enhanced Resume
+          </h4>
+          
+          <div className="flex flex-col lg:flex-row gap-6">
+            {/* Editable textarea */}
+            <div className="w-full lg:w-1/2">
+              <h5 className="text-md font-medium mb-2 text-gray-700 dark:text-gray-300">
+                Edit Resume
+              </h5>
+              <textarea
+                ref={improvedResumeRef}
+                value={improvedResumeContent}
+                onChange={(e) => setImprovedResumeContent(e.target.value)}
+                className="w-full h-[500px] p-4 border dark:border-gray-700 dark:bg-gray-700 dark:text-gray-100 rounded-md font-mono resize-none"
+              />
+              <div className="flex gap-3 mt-4">
+                <button
+                  type="button"
+                  onClick={saveEditedResume}
+                  disabled={isSaving}
+                  className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 disabled:opacity-70 flex items-center"
+                >
+                  {isSaving ? (
+                    <>
+                      <span className="spinner mr-2"></span>
+                      Saving...
+                    </>
+                  ) : (
+                    `Save as AI Resume V${aiResumeCount + 1}`
+                  )}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setShowImprovedResume(false)}
+                  className="px-4 py-2 bg-gray-200 text-gray-800 rounded-md hover:bg-gray-300 dark:bg-gray-700 dark:text-gray-200"
+                >
+                  Hide Editor
+                </button>
+              </div>
+              {saveSuccess && (
+                <p className="text-green-600 dark:text-green-400 mt-2">
+                  Resume saved successfully as AI Resume V{aiResumeCount}!
+                </p>
+              )}
+            </div>
+            
+            {/* Preview section */}
+            <div className="w-full lg:w-1/2 border dark:border-gray-700 rounded-md p-6 overflow-y-auto h-[500px] bg-white dark:bg-gray-800">
+              <h5 className="text-md font-medium mb-4 text-gray-700 dark:text-gray-300">
+                Preview
+              </h5>
+              <div className="prose dark:prose-invert max-w-none">
+                {formatMarkdown(improvedResumeContent)}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+      
+      {/* Main analysis section */}
       <div className="bg-white dark:bg-gray-800 rounded-lg p-6 shadow-sm border dark:border-gray-700">
         <p className="text-gray-700 dark:text-gray-300 mb-4">
           Use AI to analyze how well your resume matches this job description. The analysis will provide a compatibility score and suggestions for improvement.
@@ -277,13 +898,23 @@ const AIToolsTab: React.FC<AIToolsTabProps> = ({ formState, jobId }) => {
             )}
           </button>
         </div>
-
         {error && (
           <div className="p-4 bg-red-100 border border-red-400 text-red-700 rounded-md mb-4">
             {error}
           </div>
         )}
-
+        
+        {updateSuccess && !showImprovedResume && (
+          <div className="p-4 bg-green-100 border border-green-400 text-green-700 rounded-md mb-4">
+            AI Resume generated successfully! 
+            <button 
+              onClick={() => setShowImprovedResume(true)} 
+              className="ml-2 underline"
+            >
+              View and edit the AI-enhanced resume
+            </button>
+          </div>
+        )}
         {!analysisResult && !isAnalyzing && !error && (
           <div className="bg-gray-50 dark:bg-gray-900 p-8 rounded-md text-center">
             <div className="mx-auto w-24 h-24 flex items-center justify-center rounded-full bg-blue-100 dark:bg-blue-900 mb-4">
@@ -302,14 +933,55 @@ const AIToolsTab: React.FC<AIToolsTabProps> = ({ formState, jobId }) => {
             </p>
           </div>
         )}
-
         {formattedResult && (
-          <div className="bg-gray-50 dark:bg-gray-900 p-6 rounded-md overflow-auto max-h-[650px] mt-4">
-            <div 
-              className="prose prose-blue dark:prose-invert max-w-none" 
-              dangerouslySetInnerHTML={{ __html: formattedResult }} 
-            />
-          </div>
+          <>
+            <div className="bg-gray-50 dark:bg-gray-900 p-6 rounded-md overflow-auto max-h-[450px] mt-4">
+              <div 
+                className="prose prose-blue dark:prose-invert max-w-none" 
+                dangerouslySetInnerHTML={{ __html: formattedResult }} 
+              />
+            </div>
+            
+            {/* Always show the suggestions section after analysis, even if we couldn't extract specific suggestions */}
+            <div className="mt-6 bg-blue-50 dark:bg-blue-900/20 p-6 rounded-md">
+              <h4 className="text-lg font-medium text-gray-800 dark:text-gray-200 mb-3">
+                {suggestions.length > 0 ? "Suggested Improvements" : "Improve Your Resume"}
+              </h4>
+              
+              {suggestions.length > 0 ? (
+                <ul className="list-disc pl-5 space-y-2 text-gray-700 dark:text-gray-300 mb-4">
+                  {suggestions.map((suggestion, index) => (
+                    <li key={index}>{suggestion}</li>
+                  ))}
+                </ul>
+              ) : (
+                <p className="text-gray-700 dark:text-gray-300 mb-4">
+                  Click the button below to have AI analyze the results and create a tailored version of your resume that addresses the key themes identified in the job description.
+                </p>
+              )}
+              
+              <div className="mt-4">
+                <button
+                  type="button"
+                  onClick={updateResumeWithSuggestions}
+                  disabled={isUpdating || !jobId}
+                  className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 disabled:opacity-70 flex items-center justify-center"
+                >
+                  {isUpdating ? (
+                    <>
+                      <span className="spinner mr-2"></span>
+                      Creating New Resume...
+                    </>
+                  ) : (
+                    "Generate New Improved Resume"
+                  )}
+                </button>
+                <p className="text-sm text-gray-600 dark:text-gray-400 mt-2">
+                  This will create a new AI-optimized resume that you can review and save.
+                </p>
+              </div>
+            </div>
+          </>
         )}
       </div>
     </div>
