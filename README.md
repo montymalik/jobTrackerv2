@@ -1,3 +1,6 @@
+### NOT UPDATE FOR V2 YET
+
+
 # Job Application Tracker
 
 Just a personal **Next.js** web application that helps me track and manage job applications. You can add job details, upload files, and organize your applications into different columns such as "To Apply," "Applied," "Interview Scheduled,"  A hidden "Archived" page, where jobs applications that a rejection is recieved lives, orgainized in a grid pattern.
