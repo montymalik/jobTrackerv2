@@ -1,6 +1,5 @@
 import React, { useState, useRef, useEffect } from "react";
 import { FormState } from "../types";
-import SavedResumesComponent from "./SavedResumesComponent";
 
 interface GeneratedResume {
   id: string;
@@ -17,9 +16,10 @@ interface GeneratedResume {
 interface ResumeGeneratorTabProps {
   formState: FormState;
   jobId?: string;
+  onResumeGenerated?: (resumeId: string | null) => void;
 }
 
-const ResumeGeneratorTab: React.FC<ResumeGeneratorTabProps> = ({ formState, jobId }) => {
+const ResumeGeneratorTab: React.FC<ResumeGeneratorTabProps> = ({ formState, jobId, onResumeGenerated }) => {
   const [isGenerating, setIsGenerating] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [resume, setResume] = useState("");
@@ -36,6 +36,13 @@ const ResumeGeneratorTab: React.FC<ResumeGeneratorTabProps> = ({ formState, jobI
   useEffect(() => {
     setIsBrowser(true);
   }, []);
+
+  // Notify parent component when resume ID changes
+  useEffect(() => {
+    if (onResumeGenerated) {
+      onResumeGenerated(currentResumeId);
+    }
+  }, [currentResumeId, onResumeGenerated]);
 
   const generateResume = async () => {
     if (!formState.companyName || !formState.jobTitle || !formState.jobDescription) {
@@ -111,14 +118,14 @@ const ResumeGeneratorTab: React.FC<ResumeGeneratorTabProps> = ({ formState, jobI
       setIsGenerating(false);
     }
   };
-
-  // Function to handle when a saved resume is selected
-  const handleSelectResume = (selectedResume: GeneratedResume) => {
+  
+  // Function to load a saved resume
+  const loadResume = (selectedResume: GeneratedResume) => {
     setResume(selectedResume.markdownContent);
     setCurrentResumeId(selectedResume.id);
     setSuccessMessage(`Loaded resume version ${selectedResume.version}`);
   };
-
+  
   // Function to save resume to database
   const saveResume = async () => {
     if (!resume || !jobId) {
@@ -714,9 +721,6 @@ const ResumeGeneratorTab: React.FC<ResumeGeneratorTabProps> = ({ formState, jobI
           {successMessage}
         </div>
       )}
-      
-      {/* Saved Resumes component - only show if we have a job ID */}
-      {jobId && <SavedResumesComponent jobId={jobId} onSelectResume={handleSelectResume} />}
       
       <div className="h-[calc(100vh-240px)]">
         {!resume && !isGenerating && (

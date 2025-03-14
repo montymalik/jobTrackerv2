@@ -12,14 +12,31 @@ import NotesTab from "./tabs/NotesTab";
 import FilesTab from "./tabs/FilesTab";
 import CoverLetterTab from "./tabs/CoverLetterTab";
 import ResumeGeneratorTab from "./tabs/ResumeGeneratorTab";
+import SavedResumesTab from "./tabs/SavedResumesTab";
 import AIToolsTab from "./tabs/AIToolsTab";
 // Sidebar components
 import Sidebar from "./Sidebar";
 import SidebarContent from "./Sidebar/SidebarContent";
 import LeftSidebar from "./LeftSidebar";
+
+// Define resume interface
+interface GeneratedResume {
+  id: string;
+  markdownContent: string;
+  version: number;
+  jobApplicationId: string;
+  isPrimary: boolean;
+  fileName: string | null;
+  filePath: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
 export function JobForm({ job, onSubmit, onCancel }: JobFormProps) {
   const [activeTab, setActiveTab] = useState("details");
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [selectedResume, setSelectedResume] = useState<GeneratedResume | null>(null);
+  const [currentResumeId, setCurrentResumeId] = useState<string | null>(null);
   
   const { 
     formState, 
@@ -65,6 +82,19 @@ export function JobForm({ job, onSubmit, onCancel }: JobFormProps) {
     };
   }, []);
   
+  // Handle when a resume is selected from the saved resumes tab
+  const handleResumeSelect = (resume: GeneratedResume) => {
+    setSelectedResume(resume);
+    
+    // Switch to the resume generator tab to show the selected resume
+    setActiveTab('resumeGenerator');
+  };
+
+  // Handle when a resume is generated or updated
+  const handleResumeGenerated = (resumeId: string | null) => {
+    setCurrentResumeId(resumeId);
+  };
+  
   const handleSubmit = async (e?: React.FormEvent) => {
     if (e) {
       e.preventDefault();
@@ -108,6 +138,7 @@ export function JobForm({ job, onSubmit, onCancel }: JobFormProps) {
     { id: "files", label: "Files", icon: "📎" },
     { id: "coverLetter", label: "AI Cover Letter", icon: "✉️" },
     { id: "resumeGenerator", label: "AI Resume", icon: "📄" },
+    { id: "savedResumes", label: "Saved Resumes", icon: "📚" },
     { id: "aiTools", label: "AI Tools", icon: "🧠" },
   ];
   
@@ -170,6 +201,17 @@ export function JobForm({ job, onSubmit, onCancel }: JobFormProps) {
               <ResumeGeneratorTab 
                 formState={formState}
                 jobId={job?.id}
+                onResumeGenerated={handleResumeGenerated}
+                selectedResume={selectedResume}
+              />
+            )}
+            
+            {activeTab === "savedResumes" && (
+              <SavedResumesTab 
+                jobId={job?.id}
+                onSelectResume={handleResumeSelect}
+                onViewInEditor={handleResumeSelect}
+                currentResumeId={currentResumeId}
               />
             )}
             
