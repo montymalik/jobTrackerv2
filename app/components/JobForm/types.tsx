@@ -56,6 +56,11 @@ export interface ResumeGeneratorTabProps {
   jobId?: string;
 }
 
+export interface AIToolsTabProps {
+  formState: FormState;
+  jobId?: string;
+}
+
 // Right sidebar types
 export interface SidebarProps {
   isOpen: boolean;

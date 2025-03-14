@@ -12,6 +12,7 @@ import NotesTab from "./tabs/NotesTab";
 import FilesTab from "./tabs/FilesTab";
 import CoverLetterTab from "./tabs/CoverLetterTab";
 import ResumeGeneratorTab from "./tabs/ResumeGeneratorTab";
+import AIToolsTab from "./tabs/AIToolsTab";
 // Sidebar components
 import Sidebar from "./Sidebar";
 import SidebarContent from "./Sidebar/SidebarContent";
@@ -107,6 +108,7 @@ export function JobForm({ job, onSubmit, onCancel }: JobFormProps) {
     { id: "files", label: "Files", icon: "📎" },
     { id: "coverLetter", label: "AI Cover Letter", icon: "✉️" },
     { id: "resumeGenerator", label: "AI Resume", icon: "📄" },
+    { id: "aiTools", label: "AI Tools", icon: "🧠" },
   ];
   
   return (
@@ -166,6 +168,13 @@ export function JobForm({ job, onSubmit, onCancel }: JobFormProps) {
             
             {activeTab === "resumeGenerator" && (
               <ResumeGeneratorTab 
+                formState={formState}
+                jobId={job?.id}
+              />
+            )}
+            
+            {activeTab === "aiTools" && (
+              <AIToolsTab 
                 formState={formState}
                 jobId={job?.id}
               />
