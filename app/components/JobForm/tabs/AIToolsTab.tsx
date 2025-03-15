@@ -7,216 +7,132 @@ interface AIToolsTabProps {
   jobId?: string;
 }
 
-// Helper function to extract suggestions from analysis text
+// Updated function to extract "AFTER" examples from the analysis
 const extractSuggestions = (analysisText: string): string[] => {
   if (!analysisText) return [];
   
   const suggestions: string[] = [];
   
-  // Look for sections that typically contain suggestions
-  const lines = analysisText.split('\n');
-  let inSuggestionsSection = false;
-  let currentNumberedItem = "";
-  let currentNumber = 0;
+  // STEP 1: Look for the SUGGESTIONS section which contains all the AFTER examples
+  const suggestionsMatch = analysisText.match(/4\.\s*SUGGESTIONS([\s\S]*?)(?:$|(?=5\.))/i);
   
-  // First, check if there's a numbered list format (very common for recommendations)
-  const numberedSuggestions: string[] = [];
-  for (const line of lines) {
-    // Look for numbered items like "1." or "1:" or "1 -"
-    const numberedMatch = line.match(/^(\d+)[\.\:\-]\s+(.+)/);
-    if (numberedMatch) {
-      const number = parseInt(numberedMatch[1]);
-      const content = numberedMatch[2].trim();
-      
-      // If this is a new numbered item
-      if (currentNumberedItem && number !== currentNumber) {
-        numberedSuggestions.push(currentNumberedItem);
-        currentNumberedItem = content;
-        currentNumber = number;
-      } else if (!currentNumberedItem) {
-        currentNumberedItem = content;
-        currentNumber = number;
-      } else {
-        // Continuation of current numbered item
-        currentNumberedItem += " " + content;
+  if (suggestionsMatch && suggestionsMatch[1]) {
+    const suggestionsContent = suggestionsMatch[1].trim();
+    
+    // Extract markdown blocks from the suggestions section
+    const markdownBlocks = suggestionsContent.match(/```markdown\s*([\s\S]*?)```/g);
+    
+    if (markdownBlocks && markdownBlocks.length > 0) {
+      for (const block of markdownBlocks) {
+        // Clean up the markdown block
+        const cleanBlock = block
+          .replace(/```markdown\s*/, '')
+          .replace(/```\s*$/, '')
+          .trim();
+          
+        if (cleanBlock.length > 0) {
+          suggestions.push(cleanBlock);
+        }
       }
-    } 
-    // Check if this is a continuation of the current numbered item
-    else if (currentNumberedItem && !numberedMatch && !line.trim().match(/^\d+[\.\:\-]/) && line.trim()) {
-      currentNumberedItem += " " + line.trim();
-    }
-    // If we have an empty line, save the current numbered item
-    else if (currentNumberedItem && !line.trim()) {
-      numberedSuggestions.push(currentNumberedItem);
-      currentNumberedItem = "";
     }
   }
   
-  // Add the last numbered item if there is one
-  if (currentNumberedItem) {
-    numberedSuggestions.push(currentNumberedItem);
-  }
-  // If we found a good numbered list, use it
-  if (numberedSuggestions.length >= 2) {
-    for (const suggestion of numberedSuggestions) {
-      // If suggestion has secondary titles like "TITLE: content", split them into multiple suggestions
-      const titleMatch = suggestion.match(/^([^:]+):\s*(.+)/);
-      if (titleMatch) {
-        const title = titleMatch[1].trim();
-        const content = titleMatch[2].trim();
-        
-        // For each sentence in the content, create a more specific suggestion
-        const sentences = content.split(/\.\s+/);
-        for (const sentence of sentences) {
-          if (sentence.length > 10) {
-            suggestions.push(`${title}: ${sentence}`);
+  // STEP 2: If that fails, look directly for AFTER: sections following BEFORE: sections
+  if (suggestions.length === 0) {
+    // Find all sections with BEFORE: and AFTER: labels
+    const sections = analysisText.split(/\n\s*\n/); // Split by empty lines
+    
+    for (let i = 0; i < sections.length; i++) {
+      const section = sections[i];
+      
+      if (section.includes("BEFORE:") && i + 1 < sections.length && sections[i + 1].includes("AFTER:")) {
+        const afterSection = sections[i + 1];
+        // Extract content after AFTER: label
+        let afterContent = afterSection
+          .replace(/^AFTER:\s*/, "")
+          .replace(/^```markdown\s*/, "")
+          .replace(/```\s*$/, "")
+          .trim();
+          
+        if (afterContent) {
+          // Extract section name if available
+          const sectionNameMatch = section.match(/^([A-Z\s]+):/);
+          const sectionName = sectionNameMatch ? sectionNameMatch[1].trim() : "";
+          
+          if (sectionName) {
+            suggestions.push(`${sectionName}: ${afterContent}`);
+          } else {
+            suggestions.push(afterContent);
           }
         }
-      } else {
+      }
+    }
+  }
+  
+  // STEP 3: Fallback to the original extraction logic if we still have no suggestions
+  if (suggestions.length === 0) {
+    // Look for sections that typically contain suggestions
+    const lines = analysisText.split('\n');
+    let inSuggestionsSection = false;
+    let currentNumberedItem = "";
+    let currentNumber = 0;
+    
+    // First, check if there's a numbered list format (very common for recommendations)
+    const numberedSuggestions: string[] = [];
+    for (const line of lines) {
+      // Look for numbered items like "1." or "1:" or "1 -"
+      const numberedMatch = line.match(/^(\d+)[\.\:\-]\s+(.+)/);
+      if (numberedMatch) {
+        const number = parseInt(numberedMatch[1]);
+        const content = numberedMatch[2].trim();
+        
+        // If this is a new numbered item
+        if (currentNumberedItem && number !== currentNumber) {
+          numberedSuggestions.push(currentNumberedItem);
+          currentNumberedItem = content;
+          currentNumber = number;
+        } else if (!currentNumberedItem) {
+          currentNumberedItem = content;
+          currentNumber = number;
+        } else {
+          // Continuation of current numbered item
+          currentNumberedItem += " " + content;
+        }
+      } 
+      // Check if this is a continuation of the current numbered item
+      else if (currentNumberedItem && !numberedMatch && !line.trim().match(/^\d+[\.\:\-]/) && line.trim()) {
+        currentNumberedItem += " " + line.trim();
+      }
+      // If we have an empty line, save the current numbered item
+      else if (currentNumberedItem && !line.trim()) {
+        numberedSuggestions.push(currentNumberedItem);
+        currentNumberedItem = "";
+      }
+    }
+    
+    // Add the last numbered item if there is one
+    if (currentNumberedItem) {
+      numberedSuggestions.push(currentNumberedItem);
+    }
+    
+    // If we found a good numbered list, use it
+    if (numberedSuggestions.length >= 2) {
+      for (const suggestion of numberedSuggestions) {
         suggestions.push(suggestion);
       }
     }
-    
-    // If we've found good numbered suggestions, return them
-    if (suggestions.length > 0) {
-      return suggestions;
-    }
   }
   
-  // Section-based extraction as fallback
-  for (let i = 0; i < lines.length; i++) {
-    const line = lines[i];
-    const lowerLine = line.toLowerCase();
-    
-    // Check for suggestion section headers
-    if (lowerLine.includes("recommendation") || 
-        lowerLine.includes("suggested") ||
-        lowerLine.includes("suggestion") || 
-        lowerLine.includes("action") ||
-        lowerLine.includes("improve") || 
-        lowerLine.includes("missing") ||
-        lowerLine.includes("to address") ||
-        (lowerLine.includes("area") && lowerLine.includes("focus"))) {
-      inSuggestionsSection = true;
-      continue;
-    }
-    
-    // Exit suggestion section when we hit another major header
-    if (inSuggestionsSection && line.match(/^#+\s+/) && i > 0) {
-      inSuggestionsSection = false;
-    }
-    
-    // Collect suggestions while in the right section
-    if (inSuggestionsSection) {
-      // Try to find bullet points
-      if (line.trim().match(/^[\-\*\•]\s+/)) {
-        const suggestion = line.trim().replace(/^[\-\*\•]\s+/, "");
-        if (suggestion.length > 10) {
-          suggestions.push(suggestion);
-        }
-      }
-      // Look for bold text which often indicates important suggestions
-      else if (line.includes("**")) {
-        const boldMatches = line.match(/\*\*([^*]+)\*\*/g);
-        if (boldMatches) {
-          const suggestion = line.trim();
-          if (suggestion.length > 10) {
-            suggestions.push(suggestion);
-          }
-        }
-      }
-      // Look for lines starting with action verbs like "Add", "Include", etc.
-      else if (line.trim().match(/^(Add|Include|Update|Highlight|Emphasize|Focus|Strengthen|Incorporate|Refine|Address|Improve|Mention|Rephrase)\b/i)) {
-        const suggestion = line.trim();
-        if (suggestion.length > 10) {
-          suggestions.push(suggestion);
-        }
-      }
-    }
-  }
-  
-  // Look for specific sections that contain improvements
-  const sections = analysisText.split(/\n\s*\n/); // Split by empty lines
-  for (const section of sections) {
-    if (section.toLowerCase().includes("improve") || 
-        section.toLowerCase().includes("recommended") ||
-        section.toLowerCase().includes("suggestion") ||
-        section.toLowerCase().includes("action")) {
-      
-      // Get bullet points or numbered items
-      const bulletMatch = section.match(/[\-\*\•]\s+([^\n]+)/g);
-      if (bulletMatch) {
-        for (const bullet of bulletMatch) {
-          const suggestion = bullet.replace(/^[\-\*\•]\s+/, "").trim();
-          if (suggestion.length > 10 && !suggestions.includes(suggestion)) {
-            suggestions.push(suggestion);
-          }
-        }
-      }
-      
-      // Check for bold sections
-      const boldMatch = section.match(/\*\*([^*]+)\*\*/g);
-      if (boldMatch && boldMatch.length > 0) {
-        // Extract the whole line containing bold text
-        const lines = section.split('\n');
-        for (const line of lines) {
-          if (line.includes("**") && line.length > 10 && !suggestions.includes(line.trim())) {
-            suggestions.push(line.trim());
-          }
-        }
-      }
-    }
-  }
-  
-  // If we still don't have enough suggestions, try to find more specific recommendations
-  if (suggestions.length < 3) {
-    // Look for specific recommendation patterns
-    for (const line of lines) {
-      // Look for lines with strong recommendation language
-      if (line.match(/\b(should|must|need|recommend|suggest|important|critical|key|essential)\b/i) &&
-          line.length > 20 && !line.startsWith('#') && !suggestions.includes(line.trim())) {
-        suggestions.push(line.trim());
-      }
-      
-      // Look for specific sections like "Title: content" which often contain recommendations
-      const titleMatch = line.match(/^([A-Z][^:]{3,}):\s*(.+)/);
-      if (titleMatch && titleMatch[2].length > 15 && !suggestions.includes(line.trim())) {
-        suggestions.push(line.trim());
-      }
-    }
-  }
-  
-  // Deduplicate and clean up suggestions
+  // Clean up and deduplicate suggestions
   return [...new Set(suggestions)]
     .map(s => s.replace(/^\d+\.\s*/, "")) // Remove leading numbers
     .filter(s => s.length > 10); // Only keep substantial suggestions
 };
 
-// Modified prompt for better structured analysis output
-const createMatchAnalysisPrompt = (jobDescription: string, resumeText: string) => {
-  return `As an experienced Applicant Tracking System (ATS) analyst,
-with profound knowledge in technology, software engineering, data science, full stack web development, cloud engineering, 
-and technical customer success, your role involves evaluating resumes against job descriptions.
-I need a detailed, actionable analysis of this resume against the given job description:
-===== JOB DESCRIPTION =====
-${jobDescription}
-===== END JOB DESCRIPTION =====
-===== RESUME =====
-${resumeText}
-===== END RESUME =====
-Please structure your response with the following sections:
-1. MATCH PERCENTAGE: Provide an overall percentage match score (e.g., 75%)
-2. KEY THEMES IDENTIFIED: List 3-5 key themes or skills from the job description
-3. STRENGTHS: Identify 2-3 areas where the resume aligns well with the job requirements
-4. ACTIONABLE RESUME IMPROVEMENT RECOMMENDATIONS:
-   - List 3-5 specific improvements numbered from 1-5
-   - For each improvement, include specific sections to modify and suggested content changes
-   - Use clear, actionable language starting with verbs (Add, Update, Highlight, etc.)
-5. MISSING KEYWORDS: List important keywords from the job description missing from the resume
-FORMAT YOUR RECOMMENDATIONS AS A NUMBERED LIST (1., 2., etc.) with clear, specific actions.`;
-};
+// The rest of the AIToolsTab component remains the same
+// Only the extractSuggestions function has been updated
 
-// A simplified, direct approach to formatting the resume analysis
+// Helper function to format analysis output
 const formatAnalysisOutput = (text: string) => {
   if (!text) return "";
   
@@ -431,6 +347,7 @@ const formatMarkdown = (markdown: string) => {
 };
 
 const AIToolsTab: React.FC<AIToolsTabProps> = ({ formState, jobId }) => {
+  // Component state variables remain the same
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [analysisResult, setAnalysisResult] = useState<string | null>(null);
   const [formattedResult, setFormattedResult] = useState<string | null>(null);
@@ -449,17 +366,23 @@ const AIToolsTab: React.FC<AIToolsTabProps> = ({ formState, jobId }) => {
   const [aiResumeCount, setAiResumeCount] = useState(0);
   const improvedResumeRef = useRef<HTMLTextAreaElement>(null);
 
-  // Format analysis result when it changes
+  // Format analysis result when it changes - This is the key updated part!
   useEffect(() => {
     if (analysisResult) {
       setFormattedResult(formatAnalysisOutput(analysisResult));
       
-      // Extract suggestions from the analysis
+      // Use our improved extraction function to get AFTER examples
       const extractedSuggestions = extractSuggestions(analysisResult);
+      
+      // Debug log to help troubleshoot
+      console.log("Extracted suggestions:", extractedSuggestions);
+      
       setSuggestions(extractedSuggestions);
     }
   }, [analysisResult]);
 
+  // The rest of the component remains the same
+  
   // Fetch the base resume on component mount
   useEffect(() => {
     const fetchResumeData = async () => {
@@ -552,21 +475,69 @@ const AIToolsTab: React.FC<AIToolsTabProps> = ({ formState, jobId }) => {
 
       // Create an enhanced prompt that includes both the job description and instructions
       // but keep the API parameters the same as they were before
-      const enhancedPrompt = `As an experienced Applicant Tracking System (ATS) analyst,
-with profound knowledge in technology, software engineering, data science, full stack web development, cloud engineering, 
-and technical customer success, your role involves evaluating resumes against job descriptions.
-I need a detailed, actionable analysis of this resume against the given job description.
-Please structure your response with the following sections:
-1. MATCH PERCENTAGE: Provide an overall percentage match score (e.g., 75%)
-2. KEY THEMES IDENTIFIED: List 3-5 key themes or skills from the job description
-3. STRENGTHS: Identify 2-3 areas where the resume aligns well with the job requirements
-4. ACTIONABLE RESUME IMPROVEMENT RECOMMENDATIONS:
-   - List 3-5 specific improvements numbered from 1-5
-   - For each improvement, include specific sections to modify and suggested content changes
-   - Use clear, actionable language starting with verbs (Add, Update, Highlight, etc.)
-5. MISSING KEYWORDS: List important keywords from the job description missing from the resume
-FORMAT YOUR RECOMMENDATIONS AS A NUMBERED LIST (1., 2., etc.) with clear, specific actions.
-The job description is:
+      const enhancedPrompt = `<Role>
+You are THE RESUME DESTROYER, a merciless hiring manager with 20+ years of experience who has reviewed over 50,000 resumes and conducted 10,000+ interviews for top Fortune 500 companies. You have zero tolerance for mediocrity, fluff, or delusion in professional presentations. You're known in the industry as the "Dream Job Gatekeeper" - brutal in assessment but unparalleled in creating winning professional materials.
+</Role>
+
+<Context>
+The job market is ruthlessly competitive, with hundreds of qualified candidates applying for each position. Most resumes get less than 6 seconds of attention from hiring managers, and 75% are rejected by ATS systems before a human even sees them. Sugar-coated feedback doesn't help job seekers; only brutal honesty followed by strategic reconstruction leads to success.
+</Context>
+
+<Instructions>
+When presented with a resume, LinkedIn profile, or job application materials:
+
+1. First, conduct a BRUTAL TEARDOWN:
+   - Identify every weak phrase, cliché, and vague accomplishment
+   - Highlight formatting inconsistencies and visual turnoffs
+   - Expose skill gaps and qualification stretches
+   - Point out job title inflation or meaningless descriptions
+   - Calculate the "BS Factor" on a scale of 1-10 for each section
+   - Identify ATS-killing mistakes and algorithmic red flags
+
+2. Next, perform a STRATEGIC REBUILD:
+   - Rewrite each weak section with powerful, metric-driven language
+   - Optimize for both ATS algorithms and human psychology
+   - Create custom achievement bullets using the PAR format (Problem-Action-Result)
+   - Eliminate all redundancies and filler content
+   - Restructure the document for maximum impact in 6 seconds
+   - Add industry-specific power phrases and keywords
+
+3. Finally, provide a COMPETITIVE ANALYSIS:
+   - Compare the applicant against the typical competition for their target role
+   - Identify 3-5 critical differentiators they need to emphasize
+   - Suggest 2-3 skills they should immediately develop to increase marketability
+   - Provide a straight assessment of which level of positions they should realistically target
+</Instructions>
+
+<Constraints>
+- NO sugarcoating or diplomatic language - be ruthlessly honest
+- NO generic advice - everything must be specific to their materials
+- DO NOT hold back criticism for fear of hurting feelings
+- DO NOT validate delusions about qualifications or readiness
+- ALWAYS maintain a tone that is harsh but ultimately aimed at improving their chances
+- NEVER use corporate jargon or HR-speak in your feedback
+</Constraints>
+
+<Output_Format>
+1. BRUTAL ASSESSMENT (40% of response)
+   * Overall Resume BS Factor: [#/10]
+   * Detailed breakdown of critical flaws by section
+   * Most embarrassing/damaging elements identified
+
+2. STRATEGIC RECONSTRUCTION (40% of response)
+   * Completely rewritten sections with before/after examples
+   * ATS optimization suggestions
+   * Reformatting instructions
+
+3. COMPETITIVE REALITY CHECK (20% of response)
+   * Realistic job target assessment
+   * Critical missing qualifications
+   * Next development priorities
+
+4. SUGGESTIONS
+   * collate all the after examples and place them in a section called suggestions 
+</Output_Format>
+
 ${formState.jobDescription}`;
 
       // Keep the API call structure the same - don't change parameter names
@@ -691,11 +662,14 @@ ${resumeContent}
 The analysis suggested the following improvements:
 ${suggestionsText}
 Please update my resume to incorporate these suggestions. Make specific changes:
-1. Add relevant keywords from the suggestions to the skills section
-2. Enhance job descriptions to highlight relevant experience 
-3. Update the summary to better align with the job requirements
-4. Keep the same markdown format structure and section organization
-5. Do not create any new sections
+1. Rewrite each weak section with powerful, metric-driven language
+2. Optimize for both ATS algorithms and human psychology
+3. Create custom achievement bullets using the PAR format (Problem-Action-Result)
+4. Update the summary to better align with the job requirements
+5. Restructure the document for maximum impact in 6 seconds
+6. Add industry-specific power phrases and keywords
+7. Keep the same markdown format structure and section organization
+8. Do not create any new sections
 Return ONLY the updated resume in markdown format.`;
       console.log("Generated prompt for resume improvement");
       
@@ -747,7 +721,7 @@ Return ONLY the updated resume in markdown format.`;
     }
   };
   
-  // Modified function to save the resume with proper versioning
+  // Save function remains the same
   const saveEditedResume = async () => {
     if (!jobId || !improvedResumeContent) {
       setError("Cannot save resume: Missing job ID or resume content.");
@@ -796,6 +770,8 @@ Return ONLY the updated resume in markdown format.`;
       setIsSaving(false);
     }
   };
+  
+  // The JSX render content remains the same
   
   return (
     <div className="space-y-4">
