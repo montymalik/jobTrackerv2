@@ -117,15 +117,6 @@ Contributions are welcome! Please read the contributing guidelines before gettin
 ## 📄 License
 This project is licensed under the MIT License.
 
-## 🙌 Acknowledgments
-- Inspired by the challenges of modern job searching
-- Powered by cutting-edge AI technologies
-
-## 🔍 Future Roadmap
-- [ ] Enhanced AI job matching
-- [ ] Integration with job boards
-- [ ] Advanced analytics
-- [ ] Mobile app version
 
 ---
 
