@@ -2,12 +2,15 @@
 import { Fragment } from "react";
 import { Dialog, Transition } from "@headlessui/react";
 import { XMarkIcon } from "@heroicons/react/24/outline";
+import { DocumentTextIcon } from "@heroicons/react/24/outline";
+
 interface ModalProps {
   show: boolean;
   onClose: () => void;
   title: string;
   children: React.ReactNode;
 }
+
 export function Modal({ show, onClose, title, children }: ModalProps) {
   return (
     <Transition.Root show={show} as={Fragment}>
@@ -45,13 +48,22 @@ export function Modal({ show, onClose, title, children }: ModalProps) {
                   <XMarkIcon className="h-6 w-6" />
                 </button>
               </div>
-              <div className="h-full overflow-y-auto"> {/* Ensure scrolling if content overflows */}
-                <Dialog.Title
-                  as="h3"
-                  className="text-lg font-semibold leading-6 text-gray-900 dark:text-gray-100"
-                >
-                  {title}
-                </Dialog.Title>
+              
+              {/* Header with improved title layout */}
+              <div className="w-full bg-[#1e2937] text-white py-4 absolute top-0 left-0 right-0">
+                <div className="pl-24 flex items-center">
+                  <DocumentTextIcon className="h-6 w-6 mr-3" />
+                  <Dialog.Title
+                    as="h3"
+                    className="text-lg font-semibold leading-6 text-white"
+                  >
+                    {title}
+                  </Dialog.Title>
+                </div>
+              </div>
+              
+              {/* Content with padding to accommodate header */}
+              <div className="h-full overflow-y-auto pt-16"> 
                 <div className="mt-4">{children}</div>
               </div>
             </Dialog.Panel>

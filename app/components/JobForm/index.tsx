@@ -15,7 +15,6 @@ import SavedResumesTab from "./tabs/SavedResumesTab";
 import AIToolsTab from "./tabs/AIToolsTab";
 // Sidebar component
 import LeftSidebar from "./LeftSidebar";
-
 // Define resume interface from types
 import { GeneratedResume } from "./types";
 
@@ -111,7 +110,7 @@ export function JobForm({ job, onSubmit, onCancel }: JobFormProps) {
     }
   };
   
-  // Navigation items
+  // Navigation items with icons
   const navItems: NavigationItem[] = [
     { id: "details", label: "Details", icon: "📋" },
     { id: "jobDescription", label: "Job Description", icon: "📝"},
@@ -126,15 +125,9 @@ export function JobForm({ job, onSubmit, onCancel }: JobFormProps) {
   return (
     <>
       {/* Main content */}
-      <div className={`relative min-h-screen bg-white dark:bg-gray-800 dark:text-gray-100 ${isLeftSidebarOpen ? 'lg:ml-72' : ''}`}>
+      <div className="relative min-h-screen bg-white dark:bg-gray-800 dark:text-gray-100 pl-16">
         <form onSubmit={handleSubmit} className="h-full w-full p-4">
-          <div className="mb-4 flex justify-between items-center pt-12 sm:pt-4">
-            <h1 className="text-xl font-bold ml-14 sm:ml-0">
-              {job ? `Edit Job - ${formState.companyName}` : 'Add New Job'}
-            </h1>
-          </div>
-          
-          {/* Content Area */}
+          {/* Content Area - Title removed to avoid duplication */}
           <div className="w-full">
             {activeTab === "details" && (
               <DetailsTab 
@@ -204,8 +197,8 @@ export function JobForm({ job, onSubmit, onCancel }: JobFormProps) {
             )}
           </div>
           
-          {/* Action buttons for mobile (shown when left sidebar is closed) */}
-          <div className={`mt-6 flex justify-end space-x-3 ${isLeftSidebarOpen ? 'lg:hidden' : ''}`}>
+          {/* Action buttons for mobile */}
+          <div className="mt-6 flex justify-end space-x-3 md:hidden">
             <button
               type="button"
               onClick={onCancel}
