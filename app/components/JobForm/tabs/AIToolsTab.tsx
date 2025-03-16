@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from "react";
+import ResumeEditModal from "./ResumeEditModal"; // Import the ResumeEditModal component
 
 interface AIToolsTabProps {
   formState: {
@@ -128,9 +129,6 @@ const extractSuggestions = (analysisText: string): string[] => {
     .map(s => s.replace(/^\d+\.\s*/, "")) // Remove leading numbers
     .filter(s => s.length > 10); // Only keep substantial suggestions
 };
-
-// The rest of the AIToolsTab component remains the same
-// Only the extractSuggestions function has been updated
 
 // Helper function to format analysis output
 const formatAnalysisOutput = (text: string) => {
@@ -347,7 +345,7 @@ const formatMarkdown = (markdown: string) => {
 };
 
 const AIToolsTab: React.FC<AIToolsTabProps> = ({ formState, jobId }) => {
-  // Component state variables remain the same
+  // Component state variables
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [analysisResult, setAnalysisResult] = useState<string | null>(null);
   const [formattedResult, setFormattedResult] = useState<string | null>(null);
@@ -359,14 +357,16 @@ const AIToolsTab: React.FC<AIToolsTabProps> = ({ formState, jobId }) => {
   const [updateSuccess, setUpdateSuccess] = useState(false);
   
   // State for the improved resume editing feature
-  const [showImprovedResume, setShowImprovedResume] = useState(false);
   const [improvedResumeContent, setImprovedResumeContent] = useState("");
   const [isSaving, setIsSaving] = useState(false);
   const [saveSuccess, setSaveSuccess] = useState(false);
   const [aiResumeCount, setAiResumeCount] = useState(0);
-  const improvedResumeRef = useRef<HTMLTextAreaElement>(null);
+  
+  // State for the ResumeEditModal
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [resumeToEdit, setResumeToEdit] = useState<any | null>(null);
 
-  // Format analysis result when it changes - This is the key updated part!
+  // Format analysis result when it changes
   useEffect(() => {
     if (analysisResult) {
       setFormattedResult(formatAnalysisOutput(analysisResult));
@@ -380,8 +380,6 @@ const AIToolsTab: React.FC<AIToolsTabProps> = ({ formState, jobId }) => {
       setSuggestions(extractedSuggestions);
     }
   }, [analysisResult]);
-
-  // The rest of the component remains the same
   
   // Fetch the base resume on component mount
   useEffect(() => {
@@ -706,11 +704,24 @@ Return ONLY the updated resume in markdown format.`;
       console.log("Improved resume length:", improvedResume.length);
       console.log("First 100 chars:", improvedResume.substring(0, 100));
       
-      // Set the improved resume content for display and editing
-      setImprovedResumeContent(improvedResume);
-      setShowImprovedResume(true);
+      // Instead of setting state to show inline editor, create a resume object for the modal
+      const tempResume = {
+        id: null, // This will be null since it's not saved yet
+        markdownContent: improvedResume,
+        version: aiResumeCount + 1,
+        jobApplicationId: jobId,
+        isPrimary: false,
+        fileName: `AI Resume V${aiResumeCount + 1}`,
+        filePath: null,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString()
+      };
       
-      // We no longer save here - just set the content and show the editor
+      // Open the edit modal with the temporary resume
+      setResumeToEdit(tempResume);
+      setImprovedResumeContent(improvedResume); // Store content in state for saving later
+      setIsEditModalOpen(true);
+      
       setUpdateSuccess(true);
       
     } catch (error) {
@@ -721,15 +732,11 @@ Return ONLY the updated resume in markdown format.`;
     }
   };
   
-  // Save function remains the same
-  const saveEditedResume = async () => {
-    if (!jobId || !improvedResumeContent) {
-      setError("Cannot save resume: Missing job ID or resume content.");
-      return;
+  // Save the edited resume from the modal
+  const saveEditedResume = async (updatedContent: string) => {
+    if (!jobId) {
+      throw new Error("Cannot save resume: Missing job ID.");
     }
-    
-    setIsSaving(true);
-    setError(null);
     
     try {
       // Calculate next version number
@@ -742,7 +749,7 @@ Return ONLY the updated resume in markdown format.`;
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           jobApplicationId: jobId,
-          markdownContent: improvedResumeContent,
+          markdownContent: updatedContent,
           isPrimary: false, // Don't set as primary to avoid overwriting current primary
           fileName: fileName,
         }),
@@ -763,84 +770,33 @@ Return ONLY the updated resume in markdown format.`;
         const resumes = await updatedResumeResponse.json();
         console.log("Fetched resumes:", resumes.length);
       }
+      
+      return saveResponse.json();
     } catch (error) {
       console.error("Error saving edited resume:", error);
-      setError(`Failed to save resume: ${error instanceof Error ? error.message : "Unknown error"}`);
-    } finally {
-      setIsSaving(false);
+      throw error;
     }
   };
   
-  // The JSX render content remains the same
-  
+  // Close the edit modal
+  const handleCloseModal = () => {
+    setIsEditModalOpen(false);
+    setResumeToEdit(null);
+  };
+
   return (
     <div className="space-y-4">
       <h3 className="text-xl font-semibold text-gray-800 dark:text-gray-200 mb-4">
         AI Resume Analysis
       </h3>
       
-      {/* Resume editor section - appears after applying AI improvements */}
-      {showImprovedResume && (
-        <div className="bg-white dark:bg-gray-800 rounded-lg p-6 shadow-sm border dark:border-gray-700 mb-6">
-          <h4 className="text-lg font-semibold text-gray-800 dark:text-gray-200 mb-4">
-            New AI-Enhanced Resume
-          </h4>
-          
-          <div className="flex flex-col lg:flex-row gap-6">
-            {/* Editable textarea */}
-            <div className="w-full lg:w-1/2">
-              <h5 className="text-md font-medium mb-2 text-gray-700 dark:text-gray-300">
-                Edit Resume
-              </h5>
-              <textarea
-                ref={improvedResumeRef}
-                value={improvedResumeContent}
-                onChange={(e) => setImprovedResumeContent(e.target.value)}
-                className="w-full h-[500px] p-4 border dark:border-gray-700 dark:bg-gray-700 dark:text-gray-100 rounded-md font-mono resize-none"
-              />
-              <div className="flex gap-3 mt-4">
-                <button
-                  type="button"
-                  onClick={saveEditedResume}
-                  disabled={isSaving}
-                  className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 disabled:opacity-70 flex items-center"
-                >
-                  {isSaving ? (
-                    <>
-                      <span className="spinner mr-2"></span>
-                      Saving...
-                    </>
-                  ) : (
-                    `Save as AI Resume V${aiResumeCount + 1}`
-                  )}
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setShowImprovedResume(false)}
-                  className="px-4 py-2 bg-gray-200 text-gray-800 rounded-md hover:bg-gray-300 dark:bg-gray-700 dark:text-gray-200"
-                >
-                  Hide Editor
-                </button>
-              </div>
-              {saveSuccess && (
-                <p className="text-green-600 dark:text-green-400 mt-2">
-                  Resume saved successfully as AI Resume V{aiResumeCount}!
-                </p>
-              )}
-            </div>
-            
-            {/* Preview section */}
-            <div className="w-full lg:w-1/2 border dark:border-gray-700 rounded-md p-6 overflow-y-auto h-[500px] bg-white dark:bg-gray-800">
-              <h5 className="text-md font-medium mb-4 text-gray-700 dark:text-gray-300">
-                Preview
-              </h5>
-              <div className="prose dark:prose-invert max-w-none">
-                {formatMarkdown(improvedResumeContent)}
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
+      {/* Resume Edit Modal */}
+      <ResumeEditModal
+        resume={resumeToEdit}
+        isOpen={isEditModalOpen}
+        onClose={handleCloseModal}
+        onSave={saveEditedResume}
+      />
       
       {/* Main analysis section */}
       <div className="bg-white dark:bg-gray-800 rounded-lg p-6 shadow-sm border dark:border-gray-700">
@@ -880,17 +836,12 @@ Return ONLY the updated resume in markdown format.`;
           </div>
         )}
         
-        {updateSuccess && !showImprovedResume && (
+        {updateSuccess && (
           <div className="p-4 bg-green-100 border border-green-400 text-green-700 rounded-md mb-4">
-            AI Resume generated successfully! 
-            <button 
-              onClick={() => setShowImprovedResume(true)} 
-              className="ml-2 underline"
-            >
-              View and edit the AI-enhanced resume
-            </button>
+            AI Resume generated successfully!
           </div>
         )}
+        
         {!analysisResult && !isAnalyzing && !error && (
           <div className="bg-gray-50 dark:bg-gray-900 p-8 rounded-md text-center">
             <div className="mx-auto w-24 h-24 flex items-center justify-center rounded-full bg-blue-100 dark:bg-blue-900 mb-4">
