@@ -3,7 +3,6 @@ import { JobFormProps, NavigationItem } from "./types";
 import { spinnerStyles } from "./styles";
 import useJobForm from "./hooks/useJobForm";
 import useFileManagement from "./hooks/useFileManagement";
-import useSidebar from "./hooks/useSidebar";
 import useLeftSidebar from "./hooks/useLeftSidebar";
 // Tab components
 import DetailsTab from "./tabs/DetailsTab";
@@ -14,9 +13,7 @@ import CoverLetterTab from "./tabs/CoverLetterTab";
 import ResumeGeneratorTab from "./tabs/ResumeGeneratorTab";
 import SavedResumesTab from "./tabs/SavedResumesTab";
 import AIToolsTab from "./tabs/AIToolsTab";
-// Sidebar components
-import Sidebar from "./Sidebar";
-import SidebarContent from "./Sidebar/SidebarContent";
+// Sidebar component
 import LeftSidebar from "./LeftSidebar";
 
 // Define resume interface from types
@@ -45,12 +42,6 @@ export function JobForm({ job, onSubmit, onCancel }: JobFormProps) {
     fileInputRef, 
     setFiles 
   } = useFileManagement(job);
-  
-  // Right sidebar state
-  const {
-    isOpen: isRightSidebarOpen,
-    toggleSidebar: toggleRightSidebar
-  } = useSidebar();
   
   // Left navigation sidebar state
   const {
@@ -247,15 +238,6 @@ export function JobForm({ job, onSubmit, onCancel }: JobFormProps) {
         isSubmitting={isSubmitting}
         job={job}
       />
-      
-      {/* Right Info Sidebar */}
-      <Sidebar isOpen={isRightSidebarOpen} toggleSidebar={toggleRightSidebar}>
-        <SidebarContent 
-          formState={formState}
-          job={job}
-          skills={skills}
-        />
-      </Sidebar>
     </>
   );
 }
