@@ -1,90 +1,132 @@
-### NOT UPDATE FOR V2 YET
+# Job Application Tracker 📝🚀
 
+## Overview
+Job Application Tracker is a powerful web application designed to help job seekers manage their job application process efficiently. With AI-powered features and a comprehensive tracking system, this app simplifies the job search journey.
 
-# Job Application Tracker
+## 🌟 Key Features
 
-Just a personal **Next.js** web application that helps me track and manage job applications. You can add job details, upload files, and organize your applications into different columns such as "To Apply," "Applied," "Interview Scheduled,"  A hidden "Archived" page, where jobs applications that a rejection is recieved lives, orgainized in a grid pattern.
+### Job Application Management
+- Drag-and-drop Kanban board for tracking application status
+- Columns: To Apply, Applied, Interview Scheduled
+- Add, edit, and manage job applications
+- Store detailed job information including:
+  - Company name
+  - Job title
+  - Job description
+  - Application URL
+  - Submission and interview dates
+  - Contact information
+  - Notes
 
-![Homepage](Screenshot-homepage.png)
-![Edit/Add](Screenshot-edit.png)
+### AI-Powered Resume Tools 🤖
+- Base resume upload and parsing
+- AI-driven resume optimization
+- Skill extraction from job descriptions
+- Resume match analysis
+- Customized resume generation for specific job applications
 
----
+### Document Management
+- Upload and store job-related files (resumes, cover letters)
+- AI-generated cover letter creation
+- Resume version tracking
 
-## Features
+## 🛠 Tech Stack
+- **Frontend**: 
+  - React
+  - Next.js 15
+  - Tailwind CSS
+- **Backend**:
+  - Prisma ORM
+  - PostgreSQL
+- **AI Integration**:
+  - Google Gemini API
+- **Additional Libraries**:
+  - React DnD (Drag and Drop)
+  - html2pdf.js
+  - Mammoth (DOCX parsing)
 
-1. **Drag and Drop**: Easily move job cards between columns using React DnD.  
-2. **File Upload**: Attach files (resumes, cover letters, etc.) to each application.  
-3. **Dark Mode**: Toggle a dark theme for the entire app.  
-4. **Visual Indicators**:
-   - Green dot for confirmation received.
-   - Purple dot for attached files.
-5. **Search & Organization**: Keep everything in columns for an at-a-glance overview.
+## 🚀 Getting Started
 
----
+### Prerequisites
+- Node.js (v20+)
+- PostgreSQL
+- Google API Key for Gemini
 
-## Tech Stack
+### Installation
 
-- **Next.js** (App Router)  
-- **React DnD** for drag-and-drop  
-- **Tailwind CSS** for styling (including dark mode)  
-- **Prisma** for database interactions  
-- **TypeScript** for type safety  
-- **PM2** (optional) for process management in production
-
----
-
-## Getting Started
-
-### 1. Clone the Repository
+1. Clone the repository
 ```bash
-git clone https://github.com/YourUsername/job-tracker.git
-cd job-tracker
+git clone https://github.com/yourusername/job-application-tracker.git
+cd job-application-tracker
 ```
 
-### 2. Install Dependencies
+2. Install dependencies
 ```bash
-npm intall
+npm install
 ```
 
-### 3. Setup Up Environment
-Create a ```.env``` (or ```.env.local```) file in the project root. Example:
-```bash
-DATABASE_URL="postgresql://user:password@localhost:5432/job_tracker"
+3. Set up environment variables
+Create a `.env` file with:
 ```
-Adjust for your own environment
+DATABASE_URL="postgresql://username:password@localhost:5432/jobtracker"
+GOOGLE_API_KEY="your_gemini_api_key"
+```
 
-### 4. Initialize the Database (Prisma)
-If using Prisma migrations:
+4. Set up database
 ```bash
 npx prisma migrate dev
 ```
-Also generate the Prisma client if needed:
-```bash
-npx prisma generate
-```
 
-### 5. Run Locally (Development)
+5. Run the development server
 ```bash
 npm run dev
 ```
 
-### 6. Build and Start (Production)
-```bash
-npm run build
-npm run start
-```
+## 📦 Key Components
 
-### 6. File uploads
-- By default, files are stored in public/uploads/{jobId}/.
-- Ensure the uploads folder exists and is writable in production.
+### Job Board
+- Kanban-style board for tracking job applications
+- Drag and drop functionality to update application status
+- Dark mode support
+
+### Resume Tools
+- Base resume upload and parsing
+- AI-powered resume optimization
+- Job description skill matching
+- Cover letter generation
+
+### AI Analysis
+- Extract key skills from job descriptions
+- Analyze resume compatibility with job requirements
+- Generate tailored resumes and cover letters
+
+## 🔒 Data Privacy
+- Local storage of job application data
+- Secure file uploads
+- No third-party tracking
+
+## 🤝 Contributing
+Contributions are welcome! Please read the contributing guidelines before getting started.
+
+1. Fork the repository
+2. Create your feature branch
+3. Commit your changes
+4. Push to the branch
+5. Create a new Pull Request
+
+## 📄 License
+This project is licensed under the MIT License.
+
+## 🙌 Acknowledgments
+- Inspired by the challenges of modern job searching
+- Powered by cutting-edge AI technologies
+
+## 🔍 Future Roadmap
+- [ ] Enhanced AI job matching
+- [ ] Integration with job boards
+- [ ] Advanced analytics
+- [ ] Mobile app version
 
 ---
-## Planned Improvements
-- Fix the date issue, right now dates are saved 1 day previous than what is entered
-- Add remote storage options
-- Add dark mode to the Archived-Jobs page
-- Add the ability to access uploaded files when jobs are moved to the archived-jobs page
 
-
-## Notes
-This is a personal project and while it is working for me in a self-hosted environment, I can't guarantee it will work for you.  However, if you are having issues, let me know and I will take a look.
+**Happy Job Hunting! 🌟**
