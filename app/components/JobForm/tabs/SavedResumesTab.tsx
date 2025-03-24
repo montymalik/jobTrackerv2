@@ -1,6 +1,68 @@
 import React, { useState, useEffect } from "react";
+import Link from "next/link";
 import ResumeEditModal from "./ResumeEditModal";
 import { GeneratedResume, SavedResumesTabProps } from "../types";
+
+// Updated WYSIWYGEditorButton component with correct parameter names
+const WYSIWYGEditorButton = ({ jobId, resumes }: { jobId: string, resumes: GeneratedResume[] }) => {
+  // Find the primary resume
+  const primaryResume = resumes.find(resume => resume.isPrimary);
+  
+  // If no primary resume is found, we can't navigate to the editor
+  if (!primaryResume) {
+    return (
+      <button 
+        disabled
+        className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-gray-400 cursor-not-allowed"
+      >
+        <svg 
+          xmlns="http://www.w3.org/2000/svg" 
+          className="h-5 w-5 mr-2" 
+          fill="none" 
+          viewBox="0 0 24 24" 
+          stroke="currentColor"
+        >
+          <path 
+            strokeLinecap="round" 
+            strokeLinejoin="round" 
+            strokeWidth={2} 
+            d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" 
+          />
+        </svg>
+        No Primary Resume
+      </button>
+    );
+  }
+  
+  // Use jobApplicationId instead of jobId for consistency with the database schema
+  const editorUrl = `/api/resume/resume-editor/${primaryResume.id}?jobApplicationId=${jobId}`;
+  
+  // Add console log to debug URL generation
+  console.log(`Editor URL generated: ${editorUrl}, jobApplicationId: ${jobId}, resumeId: ${primaryResume.id}`);
+  
+  return (
+    <Link
+      href={editorUrl}
+      className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-purple-600 hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-500"
+    >
+      <svg 
+        xmlns="http://www.w3.org/2000/svg" 
+        className="h-5 w-5 mr-2" 
+        fill="none" 
+        viewBox="0 0 24 24" 
+        stroke="currentColor"
+      >
+        <path 
+          strokeLinecap="round" 
+          strokeLinejoin="round" 
+          strokeWidth={2} 
+          d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" 
+        />
+      </svg>
+      Advanced WYSIWYG Resume Editor
+    </Link>
+  );
+};
 
 const SavedResumesTab: React.FC<SavedResumesTabProps> = ({ 
   jobId, 
@@ -23,12 +85,17 @@ const SavedResumesTab: React.FC<SavedResumesTabProps> = ({
     setError(null);
     
     try {
+      // Debug log to verify jobId is available when fetching
+      console.log(`Fetching resumes for jobApplicationId: ${jobId}`);
+      
+      // Use jobApplicationId in query parameter for consistency
       const response = await fetch(`/api/resume/get-for-job?jobId=${jobId}`);
       if (!response.ok) {
         throw new Error(`Failed to fetch resumes: ${response.status}`);
       }
       
       const data = await response.json();
+      console.log(`Fetched ${data.length} resumes for job ${jobId}`);
       setResumes(data);
     } catch (error) {
       console.error("Error fetching resumes:", error);
@@ -180,9 +247,16 @@ const SavedResumesTab: React.FC<SavedResumesTabProps> = ({
 
   return (
     <div className="space-y-4">
-      <h3 className="text-xl font-semibold text-gray-800 dark:text-gray-200 mb-4">
-        Saved Resumes
-      </h3>
+      <div className="flex justify-between items-center mb-4">
+        <h3 className="text-xl font-semibold text-gray-800 dark:text-gray-200">
+          Saved Resumes
+        </h3>
+        
+        {/* Only display button if we have both jobId and at least one resume */}
+        {jobId && resumes.length > 0 && (
+          <WYSIWYGEditorButton jobId={jobId} resumes={resumes} />
+        )}
+      </div>
       
       {error && (
         <div className="p-4 bg-red-100 border border-red-400 text-red-700 rounded-md mb-4">

@@ -1,5 +1,7 @@
 import React, { useState, useRef, useEffect } from "react";
-import { FormState, GeneratedResume, ResumeGeneratorTabProps } from "../types";
+import { FormState, GeneratedResume, ResumeGeneratorTabProps } from '@/app/lib/types';
+import { updateResumeFilename } from "@/app/lib/PdfExporter";
+import { ResumeExportButton } from "@/app/lib/ResumeExporter";
 
 const ResumeGeneratorTab: React.FC<ResumeGeneratorTabProps> = ({ 
   formState, 
@@ -16,14 +18,6 @@ const ResumeGeneratorTab: React.FC<ResumeGeneratorTabProps> = ({
   const textAreaRef = useRef<HTMLTextAreaElement>(null);
   const pdfContainerRef = useRef<HTMLDivElement>(null);
   
-  // Flag to check if we're running in browser
-  const [isBrowser, setIsBrowser] = useState(false);
-  
-  // Set isBrowser to true once component mounts
-  useEffect(() => {
-    setIsBrowser(true);
-  }, []);
-  
   // Load selected resume when it changes
   useEffect(() => {
     if (selectedResume) {
@@ -32,14 +26,12 @@ const ResumeGeneratorTab: React.FC<ResumeGeneratorTabProps> = ({
       setSuccessMessage(`Loaded resume "${selectedResume.fileName || `Version ${selectedResume.version}`}"`);
     }
   }, [selectedResume]);
-
   // Notify parent component when resume ID changes
   useEffect(() => {
     if (onResumeGenerated) {
       onResumeGenerated(currentResumeId);
     }
   }, [currentResumeId, onResumeGenerated]);
-
   const generateResume = async () => {
     if (!formState.companyName || !formState.jobTitle || !formState.jobDescription) {
       setError("Please fill in the company name, job title, and job description in the Details tab before generating a resume.");
@@ -73,14 +65,11 @@ const ResumeGeneratorTab: React.FC<ResumeGeneratorTabProps> = ({
      <Role>
       You are THE RESUME DESTROYER, a merciless hiring manager with 20+ years of experience who has reviewed over 50,000 resumes and conducted 10,000+ interviews for top Fortune 500 companies. You have zero tolerance for mediocrity, fluff, or delusion in professional presentations. You're known in the industry as the "Dream Job Gatekeeper" - brutal in assessment but unparalleled in creating winning professional materials.
      </Role>
-
     <Context>
     The job market is ruthlessly competitive, with hundreds of qualified candidates applying for each position. Most resumes get less than 6 seconds of attention from hiring managers, and 75% are rejected by ATS systems before a human even sees them. Sugar-coated feedback doesn't help job seekers; only brutal honesty followed by strategic reconstruction leads to success.
     </Context>
-
     <Instructions>
     When presented with a resume, LinkedIn profile, or job application materials:
-
     1. First, conduct a BRUTAL TEARDOWN:
       - Identify every weak phrase, cliché, and vague accomplishment
       - Highlight formatting inconsistencies and visual turnoffs
@@ -88,7 +77,6 @@ const ResumeGeneratorTab: React.FC<ResumeGeneratorTabProps> = ({
       - Point out job title inflation or meaningless descriptions
       - Calculate the "BS Factor" on a scale of 1-10 for each section
       - Identify ATS-killing mistakes and algorithmic red flags
-
     2. Next, perform a STRATEGIC REBUILD:
       - Rewrite each weak section with powerful, metric-driven language
       - Optimize for both ATS algorithms and human psychology
@@ -97,7 +85,6 @@ const ResumeGeneratorTab: React.FC<ResumeGeneratorTabProps> = ({
       - Restructure the document for maximum impact in 6 seconds
       - Add industry-specific power phrases and keywords
     </Instructions>
-
     FORMAT REQUIREMENTS:
       - Use proper markdown formatting:
       - # for main heading (name)
@@ -211,7 +198,6 @@ const ResumeGeneratorTab: React.FC<ResumeGeneratorTabProps> = ({
       setIsSaving(false);
     }
   };
-
   const copyToClipboard = () => {
     if (textAreaRef.current) {
       navigator.clipboard.writeText(textAreaRef.current.value)
@@ -231,268 +217,23 @@ const ResumeGeneratorTab: React.FC<ResumeGeneratorTabProps> = ({
         });
     }
   };
-
-  // Export to PDF and update filename in database if needed
-  const exportToPDF = async () => {
-    if (!resume || !isBrowser) return;
-    
-    try {
-      // Dynamically import html2pdf only on the client side
-      const html2pdfModule = await import('html2pdf.js');
-      const html2pdf = html2pdfModule.default;
-      
-      // Create a clean HTML template for the PDF
-      const element = document.createElement('div');
-      element.innerHTML = `
-        <!DOCTYPE html>
-        <html>
-        <head>
-          <style>
-            body {
-              font-family: 'Arial', sans-serif;
-              color: #333333;
-              line-height: 1.5;
-              margin: 0;
-              padding: 0;
-              background-color: #ffffff;
-            }
-            .container {
-              max-width: 8.5in;
-              margin: 0 auto;
-              padding: 0.75in 0.75in;
-            }
-            h1 {
-              text-align: center;
-              font-size: 24px;
-              text-transform: uppercase;
-              letter-spacing: 1px;
-              margin-bottom: 5px;
-              color: #2c3e50;
-              font-weight: bold;
-            }
-            .contact-info {
-              text-align: center;
-              margin-bottom: 20px;
-              font-size: 12px;
-              color: #333;
-              line-height: 1.4;
-            }
-            h2 {
-              font-size: 14px;
-              color: #2c3e50;
-              border-bottom: 1px solid #ddd;
-              padding-bottom: 5px;
-              margin-top: 20px;
-              margin-bottom: 12px;
-              text-transform: uppercase;
-              font-weight: bold;
-            }
-            h3 {
-              font-size: 14px;
-              margin-bottom: 5px;
-              margin-top: 15px;
-              font-weight: normal;
-            }
-            .bullet-list {
-              margin-top: 0;
-              margin-bottom: 10px;
-              padding-left: 0;
-              list-style-type: none;
-            }
-            .bullet-list li {
-              position: relative;
-              padding-left: 12px;
-              margin-bottom: 6px;
-              page-break-inside: avoid;
-              color: #333;
-              line-height: 1.4;
-            }
-            .bullet-list li:before {
-              content: "•";
-              position: absolute;
-              left: 0;
-              color: #333;
-              font-weight: bold;
-            }
-            p {
-              margin-bottom: 10px;
-              margin-top: 0;
-              color: #333;
-              line-height: 1.4;
-            }
-            .emphasis {
-              font-weight: bold;
-              color: #333;
-            }
-            .job-title {
-              font-weight: bold;
-            }
-            .company-name {
-              font-style: normal;
-            }
-            .date-range {
-              float: right;
-              font-size: 12px;
-              color: #333;
-            }
-            .section-content {
-              margin-bottom: 15px;
-            }
-            @page {
-              margin: 0;
-            }
-          </style>
-        </head>
-        <body>
-          <div class="container" id="resume-content">
-          </div>
-        </body>
-        </html>
-      `;
-      
-      document.body.appendChild(element);
-      
-      // Process the markdown content
-      const resumeContent = element.querySelector('#resume-content');
-      if (resumeContent) {
-        let htmlContent = '';
-        const lines = resume.split('\n');
-        let inList = false;
-        
-        for (let i = 0; i < lines.length; i++) {
-          const line = lines[i].trim();
-          
-          if (!line) {
-            // Empty line
-            if (inList) {
-              htmlContent += '</ul>';
-              inList = false;
-            }
-            continue;
-          }
-          
-          // Handle headings
-          if (line.startsWith('# ')) {
-            htmlContent += '<h1>' + line.substring(2) + '</h1>';
-          }
-          else if (line.startsWith('## ')) {
-            htmlContent += '<h2>' + line.substring(3) + '</h2>';
-          }
-          else if (line.startsWith('### ')) {
-            htmlContent += '<h3>' + line.substring(4) + '</h3>';
-          }
-          // Handle bullet points
-          else if (line.startsWith('- ')) {
-            if (!inList) {
-              htmlContent += '<ul class="bullet-list">';
-              inList = true;
-            }
-            
-            let itemContent = line.substring(2);
-            // Handle bold text with ** markers
-            itemContent = itemContent.replace(/\*\*([^*]+)\*\*/g, '<b style="color:#333333 !important">$1</b>');
-            
-            htmlContent += '<li style="color:#333333 !important">' + itemContent + '</li>';
-          }
-          // Handle contact info line (usually right after the name)
-          else if (line.includes('**Email:**') || (i > 0 && lines[i-1].startsWith('# '))) {
-            // Process bold text with ** markers
-            const formattedLine = line.replace(/\*\*([^*]+)\*\*/g, '<b style="color:#333333 !important">$1</b>');
-            htmlContent += '<div class="contact-info" style="color:#333333 !important">' + formattedLine + '</div>';
-          }
-          // Handle regular paragraphs
-          else {
-            if (inList) {
-              htmlContent += '</ul>';
-              inList = false;
-            }
-            
-            // Process bold text with ** markers
-            const formattedLine = line.replace(/\*\*([^*]+)\*\*/g, '<b style="color:#333333 !important">$1</b>');
-            htmlContent += '<p style="color:#333333 !important">' + formattedLine + '</p>';
-          }
-        }
-        
-        // Close any open list
-        if (inList) {
-          htmlContent += '</ul>';
-        }
-        
-        resumeContent.innerHTML = htmlContent;
+  // Helper function for updating the resume filename in the database
+  const handleUpdateFilename = async (metadata: any, filename: string) => {
+    if (metadata && metadata.id) {
+      const success = await updateResumeFilename(metadata.id, filename);
+      if (!success) {
+        console.error("Failed to update resume filename");
       }
-      
-      const filename = `Resume_${formState.companyName.replace(/\s+/g, '_')}.pdf`;
-      
-      const opt = {
-        margin: 0,
-        filename: filename,
-        image: { 
-          type: 'jpeg', 
-          quality: 1 
-        },
-        html2canvas: { 
-          scale: 2,
-          useCORS: true,
-          letterRendering: true,
-          allowTaint: true
-        },
-        jsPDF: { 
-          unit: 'in', 
-          format: 'letter', 
-          orientation: 'portrait' as 'portrait'
-        }
-      };
-      
-      // Process PDF creation
-      html2pdf()
-        .set(opt)
-        .from(element)
-        .save()
-        .then(() => {
-          document.body.removeChild(element);
-          
-          // If we have a resume ID, update the filename
-          if (currentResumeId) {
-            console.log("Updating filename for resumeId:", currentResumeId);
-            fetch("/api/resume/update-filename", {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({
-                resumeId: currentResumeId,
-                fileName: filename
-              })
-            })
-            .then(response => {
-              if (!response.ok) {
-                console.error("Failed to update resume filename. Status:", response.status);
-                return response.text().then(text => {
-                  console.error("Error details:", text);
-                });
-              } else {
-                console.log("Successfully updated resume filename");
-              }
-            })
-            .catch(err => {
-              console.error("Failed to update resume filename:", err);
-            });
-          } 
-          // Or if we have a job ID but no current resume ID, save the resume with the filename
-          else if (jobId) {
-            console.log("No resumeId found, saving resume after PDF export");
-            saveResume();
-          }
-        })
-        .catch(err => {
-          console.error("PDF generation error:", err);
-          setError("Failed to generate PDF. Please try again.");
-          document.body.removeChild(element);
-        });
-    } catch (error) {
-      console.error("Error loading html2pdf:", error);
-      setError("Failed to load PDF generation library. Please try again.");
+      return success;
+    }
+    return false;
+  };
+  // Helper function for saving the resume after export if needed
+  const handleSaveAfterExport = async () => {
+    if (jobId && !currentResumeId) {
+      await saveResume();
     }
   };
-
   // Helper function to format job titles with company and date
   const formatJobTitle = (line: string, index: number) => {
     if (!line.includes('|')) {
@@ -531,7 +272,6 @@ const ResumeGeneratorTab: React.FC<ResumeGeneratorTabProps> = ({
       </h3>
     );
   };
-
   // Enhanced formatter that properly handles markdown
   const formatResume = (text: string) => {
     if (!text) return null;
@@ -635,7 +375,6 @@ const ResumeGeneratorTab: React.FC<ResumeGeneratorTabProps> = ({
       return <React.Fragment key={index}>{part}</React.Fragment>;
     });
   };
-
   // Clear success message after a delay
   useEffect(() => {
     if (successMessage) {
@@ -645,7 +384,6 @@ const ResumeGeneratorTab: React.FC<ResumeGeneratorTabProps> = ({
       return () => clearTimeout(timer);
     }
   }, [successMessage]);
-
   return (
     <div className="space-y-4">
       <div className="flex justify-between items-center mb-6">
@@ -704,16 +442,37 @@ const ResumeGeneratorTab: React.FC<ResumeGeneratorTabProps> = ({
                 </svg>
                 Copy
               </button>
-              <button
-                type="button"
-                onClick={exportToPDF}
-                className="px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 flex items-center justify-center min-w-32"
-              >
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-1" viewBox="0 0 20 20" fill="currentColor">
-                  <path fillRule="evenodd" d="M6 2a2 2 0 00-2 2v12a2 2 0 002 2h8a2 2 0 002-2V7.414A2 2 0 0015.414 6L12 2.586A2 2 0 0010.586 2H6zm5 6a1 1 0 10-2 0v3.586l-1.293-1.293a1 1 0 10-1.414 1.414l3 3a1 1 0 001.414 0l3-3a1 1 0 00-1.414-1.414L11 11.586V8z" clipRule="evenodd" />
-                </svg>
-                Export PDF
-              </button>
+              
+              {/* Use the specialized ResumeExportButton component */}
+              <ResumeExportButton
+  content={resume}
+  filename={`Resume_${formState.companyName.replace(/\s+/g, '_')}.pdf`}
+  metadata={{ 
+    id: currentResumeId || undefined, 
+    title: `Resume for ${formState.companyName}`,
+    category: "resume",
+    jobTitle: formState.jobTitle,
+    company: formState.companyName
+  }}
+  updateMetadata={handleUpdateFilename}
+  saveAfterExport={handleSaveAfterExport}
+  onSuccess={(filename) => setSuccessMessage(`PDF exported successfully as ${filename}`)}
+  onError={(error) => setError(error.message)}
+  isDisabled={isGenerating || isSaving}
+  includeBorders={false}
+  nameUnderlineColor="#000000"
+  headingUnderlineColor="#000000"
+  removeTitlesOnly={["PROFESSIONAL SUMMARY"]}
+  colors={{
+    name: '#006655',
+    headings: '#006655',
+    subheadings: '#006655',
+    body: '#000000',
+    bullet: '#000000'
+  }}
+  companyNameBeforeTitle={true}
+  buttonText="Export PDF"
+/>
             </>
           )}
         </div>
@@ -787,5 +546,4 @@ const ResumeGeneratorTab: React.FC<ResumeGeneratorTabProps> = ({
     </div>
   );
 };
-
 export default ResumeGeneratorTab;

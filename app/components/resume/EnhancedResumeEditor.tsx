@@ -1,0 +1,500 @@
+// app/components/resume/EnhancedResumeEditor.tsx
+import React, { useState, useEffect, useRef } from 'react';
+import { DragDropContext, Droppable, Draggable } from 'react-beautiful-dnd';
+import { ResumeSection, ResumeSectionType } from '@/app/lib/types';
+import { markdownToHtml, sectionsToMarkdown } from '@/app/lib/markdown-utils';
+import { resumeDataToSections } from '@/app/lib/resume-utils';
+
+// Updated interface with jobApplicationId instead of jobId
+interface EnhancedResumeEditorProps {
+  resumeId?: string;
+  jobApplicationId?: string;
+  onSave: (sections: ResumeSection[]) => Promise<void>;
+}
+
+const EnhancedResumeEditor: React.FC<EnhancedResumeEditorProps> = ({ 
+  resumeId, 
+  jobApplicationId, 
+  onSave 
+}) => {
+  const [resumeSections, setResumeSections] = useState<ResumeSection[]>([]);
+  const [activeSection, setActiveSection] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [aiImprovement, setAiImprovement] = useState<string | null>(null);
+  const [isImprovementLoading, setIsImprovementLoading] = useState(false);
+  const [jobDescription, setJobDescription] = useState<string>('');
+  const editorRefs = useRef<{[key: string]: HTMLDivElement | null}>({});
+  const [isSaving, setIsSaving] = useState(false);
+  const [saveSuccess, setSaveSuccess] = useState(false);
+  const [currentResumeId, setCurrentResumeId] = useState<string | null>(null);
+  
+  // Fetch resume data and job description
+  useEffect(() => {
+    const fetchResumeData = async () => {
+      try {
+        setIsLoading(true);
+        setError(null);
+        
+        console.log("Fetching resume data with params:", { resumeId, jobApplicationId });
+        
+        // Fetch resume data - prioritize finding the primary resume
+        let resumeResponse;
+        let specificResumeRequested = false;
+        
+        // If we have a specific resumeId, that's the one we're editing
+        if (resumeId) {
+          console.log(`Specific resume requested with ID: ${resumeId}`);
+          specificResumeRequested = true;
+          
+          // First, check if this is a valid resume for this job
+          if (jobApplicationId) {
+            resumeResponse = await fetch(`/api/resume/get-for-job?jobApplicationId=${jobApplicationId}`);
+            
+            if (resumeResponse.ok) {
+              const allJobResumes = await resumeResponse.json();
+              console.log(`Found ${allJobResumes.length} resumes for job`);
+              
+              // Find the specific resume in the job's resumes
+              const targetResume = allJobResumes.find((r: any) => r.id === resumeId);
+              
+              if (targetResume) {
+                console.log("Found specific resume in job's resumes:", targetResume.id);
+                // Use this specific resume
+                setCurrentResumeId(targetResume.id);
+                processResumeData(targetResume);
+              } else {
+                console.log("Requested resume ID not found in job's resumes");
+                // Resume ID wasn't found in job's resumes, find primary resume instead
+                specificResumeRequested = false;
+              }
+            }
+          } else {
+            // No job ID, try to get the specific resume directly
+            resumeResponse = await fetch(`/api/resume/${resumeId}`);
+            if (resumeResponse.ok) {
+              const resumeData = await resumeResponse.json();
+              setCurrentResumeId(resumeId);
+              processResumeData(resumeData);
+            } else {
+              console.log("Failed to fetch specific resume, will try to find primary resume");
+              specificResumeRequested = false;
+            }
+          }
+        }
+        
+        // If no specific resume was requested or found, find the primary resume
+        if (!specificResumeRequested || !currentResumeId) {
+          console.log("Looking for primary resume for job:", jobApplicationId);
+          
+          if (jobApplicationId) {
+            // Get all resumes for this job
+            resumeResponse = await fetch(`/api/resume/get-for-job?jobApplicationId=${jobApplicationId}`);
+            
+            if (resumeResponse.ok) {
+              const allJobResumes = await resumeResponse.json();
+              console.log(`Found ${allJobResumes.length} resumes for job application`);
+              
+              // Find the primary resume
+              const primaryResume = allJobResumes.find((r: any) => r.isPrimary === true);
+              
+              if (primaryResume) {
+                console.log("Found primary resume:", primaryResume.id);
+                setCurrentResumeId(primaryResume.id);
+                processResumeData(primaryResume);
+              } else if (allJobResumes.length > 0) {
+                // No primary resume, use the first one
+                console.log("No primary resume found, using first resume:", allJobResumes[0].id);
+                setCurrentResumeId(allJobResumes[0].id);
+                processResumeData(allJobResumes[0]);
+              } else {
+                console.log("No resumes found for job, using base resume");
+                // No resumes for this job, get the base resume
+                fallbackToBaseResume();
+              }
+            } else {
+              console.log("Failed to fetch job resumes, using base resume");
+              fallbackToBaseResume();
+            }
+          } else {
+            console.log("No job application ID, using base resume");
+            fallbackToBaseResume();
+          }
+        }
+        
+        // Fetch job description
+        if (jobApplicationId) {
+          const jobResponse = await fetch(`/api/jobs/${jobApplicationId}`);
+          if (jobResponse.ok) {
+            const jobData = await jobResponse.json();
+            setJobDescription(jobData.jobDescription || '');
+          }
+        }
+        
+      } catch (err) {
+        console.error('Error fetching resume:', err);
+        setError('Could not load resume data');
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    
+    // Helper to fallback to base resume
+    const fallbackToBaseResume = async () => {
+      try {
+        const response = await fetch('/api/resume/get');
+        if (response.ok) {
+          const baseResumeData = await response.json();
+          processResumeData(baseResumeData);
+        } else {
+          throw new Error('Failed to fetch base resume');
+        }
+      } catch (error) {
+        console.error("Error fetching base resume:", error);
+        setError('Could not load any resume data');
+      }
+    };
+    
+    // Helper to process resume data
+    const processResumeData = (resumeData: any) => {
+      // Process resume data into sections using the resume-specific utility function
+      const sections = resumeDataToSections(resumeData);
+      setResumeSections(sections);
+    };
+    
+    fetchResumeData();
+  }, [resumeId, jobApplicationId]);
+  
+  // Handle section click
+  const handleSectionClick = (sectionId: string) => {
+    setActiveSection(sectionId);
+    setAiImprovement(null);
+  };
+  
+  // Request AI improvement for a section
+  const improveSection = async (sectionId: string) => {
+    if (!jobDescription) {
+      setError('No job description available. Please add one to improve your resume.');
+      return;
+    }
+    
+    const section = resumeSections.find(s => s.id === sectionId);
+    if (!section) return;
+    
+    setIsImprovementLoading(true);
+    setError(null);
+    
+    try {
+      // Prepare prompt for AI
+      const prompt = `
+        I need to improve a specific section of my resume to better match a job description.
+        
+        JOB DESCRIPTION:
+        ${jobDescription}
+        
+        RESUME SECTION (${section.title}):
+        ${section.content}
+        
+        Please enhance this section to:
+        1. Make it more impactful and achievement-focused
+        2. Include relevant keywords from the job description
+        3. Use strong action verbs
+        4. Quantify achievements where possible
+        5. Keep the same general format and structure
+        6. Maintain the same length or only slightly longer
+        
+        Provide ONLY the improved text without any explanation.
+      `;
+      
+      // Call Gemini API through your backend - updated to use jobApplicationId
+      const response = await fetch('/api/gemini/generate-resume', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          prompt,
+          jobApplicationId,
+          model: 'gemini-2.0-flash-thinking-exp'
+        })
+      });
+      
+      if (!response.ok) {
+        throw new Error('Failed to get AI suggestions');
+      }
+      
+      const data = await response.json();
+      setAiImprovement(data.resume || '');
+    } catch (error) {
+      console.error('Error generating AI improvement:', error);
+      setError('Failed to generate improvements. Please try again.');
+    } finally {
+      setIsImprovementLoading(false);
+    }
+  };
+  
+  // Apply AI improvement to section
+  const applyImprovement = () => {
+    if (!activeSection || !aiImprovement) return;
+    
+    setResumeSections(prevSections => 
+      prevSections.map(section => 
+        section.id === activeSection 
+          ? { ...section, content: aiImprovement }
+          : section
+      )
+    );
+    
+    setAiImprovement(null);
+  };
+  
+  // Update section content manually
+  const handleContentEdit = (sectionId: string, newContent: string) => {
+    setResumeSections(prevSections => 
+      prevSections.map(section => 
+        section.id === sectionId 
+          ? { ...section, content: newContent }
+          : section
+      )
+    );
+  };
+  
+  // Updated handleSave function for EnhancedResumeEditor
+  const handleSave = async () => {
+    setIsSaving(true);
+    setError(null);
+    
+    try {
+      // Convert the resume sections back to markdown using the generic utility function
+      const combinedMarkdown = sectionsToMarkdown<ResumeSection>(resumeSections, {
+        headerType: 'HEADER'
+      });
+      
+      console.log(`Saving resume changes to resume ID: ${currentResumeId}`);
+      
+      if (!currentResumeId) {
+        throw new Error('No resume ID available to save changes');
+      }
+      
+      // Call the update API endpoint with the correct method and parameters
+      const response = await fetch(`/api/resume/update`, {
+        method: 'PUT', // Match the HTTP method in your route.ts file
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          id: currentResumeId,
+          markdownContent: combinedMarkdown
+        }),
+      });
+      
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`Failed to update resume: ${errorText}`);
+      }
+      
+      // Successfully saved
+      setSaveSuccess(true);
+      
+      // Reset success message after delay
+      setTimeout(() => {
+        setSaveSuccess(false);
+      }, 3000);
+      
+      console.log("Resume saved successfully");
+    } catch (error) {
+      console.error('Error saving resume:', error);
+      setError(`Failed to save resume: ${error instanceof Error ? error.message : "Unknown error"}`);
+    } finally {
+      setIsSaving(false);
+    }
+  };
+  
+  // Custom styling options for markdown conversion
+  const markdownHtmlOptions = {
+    headingClass: {
+      h3: 'text-md font-semibold mt-3 mb-1'
+    },
+    paragraphClass: 'my-2',
+    listClass: 'list-disc pl-5 my-2',
+    listItemClass: ''
+  };
+  
+  if (isLoading) {
+    return (
+      <div className="flex justify-center items-center py-12">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500"></div>
+      </div>
+    );
+  }
+  
+  if (error && !resumeSections.length) {
+    return (
+      <div className="text-center py-8">
+        <div className="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-red-100 dark:bg-red-900">
+          <svg className="h-6 w-6 text-red-600 dark:text-red-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
+          </svg>
+        </div>
+        <h3 className="mt-2 text-lg font-medium text-gray-900 dark:text-white">Resume Data Error</h3>
+        <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
+          {error}
+        </p>
+      </div>
+    );
+  }
+  
+  return (
+    <div className="flex flex-col lg:flex-row gap-6 h-full">
+      {/* Left side: Resume Preview */}
+      <div className="w-full lg:w-2/3 bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-8 overflow-y-auto">
+        <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-6">Resume Editor</h2>
+        
+        {/* Resume Sections */}
+        <div className="space-y-6">
+          {resumeSections.map((section) => (
+            <div 
+              key={section.id}
+              className={`border rounded-md p-4 transition-colors ${
+                activeSection === section.id 
+                  ? 'border-blue-500 dark:border-blue-400 bg-blue-50 dark:bg-blue-900/20' 
+                  : 'border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600'
+              } cursor-pointer`}
+              onClick={() => handleSectionClick(section.id)}
+            >
+              <div className="flex justify-between items-center mb-2">
+                <h3 className="font-semibold text-gray-900 dark:text-white">{section.title}</h3>
+                <span className="text-xs text-gray-500 dark:text-gray-400">Click to edit</span>
+              </div>
+              
+              <div 
+                ref={el => { editorRefs.current[section.id] = el; }}
+                className="prose prose-sm dark:prose-invert max-w-none"
+                dangerouslySetInnerHTML={{ __html: markdownToHtml(section.content, markdownHtmlOptions) }}
+              />
+            </div>
+          ))}
+        </div>
+        
+        {/* Save Button */}
+        <div className="mt-8 flex justify-end">
+          <button
+            onClick={handleSave}
+            disabled={isSaving}
+            className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-70 flex items-center"
+          >
+            {isSaving ? (
+              <>
+                <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                </svg>
+                Saving...
+              </>
+            ) : "Save Resume"}
+          </button>
+        </div>
+        
+        {saveSuccess && (
+          <div className="mt-4 p-2 bg-green-50 dark:bg-green-900/20 text-green-800 dark:text-green-200 rounded-md text-center">
+            Resume saved successfully!
+          </div>
+        )}
+        
+        {error && (
+          <div className="mt-4 p-2 bg-red-50 dark:bg-red-900/20 text-red-800 dark:text-red-200 rounded-md text-center">
+            {error}
+          </div>
+        )}
+      </div>
+      
+      {/* Right side: Editor Panel */}
+      <div className="w-full lg:w-1/3 bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-6">
+        <h2 className="text-lg font-bold text-gray-900 dark:text-white mb-4">Section Editor</h2>
+        
+        {activeSection ? (
+          <>
+            {/* Section title */}
+            <div className="mb-4">
+              <h3 className="font-medium text-gray-700 dark:text-gray-300">
+                {resumeSections.find(s => s.id === activeSection)?.title || 'Selected Section'}
+              </h3>
+            </div>
+            
+            {/* Current content */}
+            <div className="mb-4">
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                Current Content
+              </label>
+              <textarea
+                value={resumeSections.find(s => s.id === activeSection)?.content || ''}
+                onChange={(e) => handleContentEdit(activeSection, e.target.value)}
+                className="w-full h-40 p-3 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 resize-none"
+                placeholder="Section content"
+              />
+            </div>
+            
+            {/* AI improvement button */}
+            <div className="mb-4">
+              <button
+                onClick={() => improveSection(activeSection)}
+                disabled={isImprovementLoading || !jobDescription}
+                className="w-full px-4 py-2 bg-purple-600 text-white rounded-md hover:bg-purple-700 disabled:opacity-70 flex items-center justify-center"
+              >
+                {isImprovementLoading ? (
+                  <>
+                    <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                    Enhancing...
+                  </>
+                ) : (
+                  <>
+                    <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path>
+                    </svg>
+                    Enhance with AI
+                  </>
+                )}
+              </button>
+              
+              {!jobDescription && (
+                <p className="mt-1 text-xs text-yellow-600 dark:text-yellow-400">
+                  A job description is required for AI enhancement
+                </p>
+              )}
+            </div>
+            
+            {/* AI improvement result */}
+            {aiImprovement && (
+              <div className="mt-6">
+                <div className="flex justify-between items-center mb-2">
+                  <h3 className="font-medium text-gray-800 dark:text-gray-200">AI Enhanced Version</h3>
+                  <button
+                    onClick={applyImprovement}
+                    className="text-sm px-3 py-1 bg-green-600 text-white rounded-md hover:bg-green-700"
+                  >
+                    Apply
+                  </button>
+                </div>
+                <div className="p-3 border border-green-200 dark:border-green-900 rounded-md bg-green-50 dark:bg-green-900/20">
+                  <div 
+                    className="prose prose-sm dark:prose-invert max-w-none"
+                    dangerouslySetInnerHTML={{ __html: markdownToHtml(aiImprovement, markdownHtmlOptions) }}
+                  />
+                </div>
+              </div>
+            )}
+          </>
+        ) : (
+          <div className="flex flex-col items-center justify-center h-64 text-center text-gray-500 dark:text-gray-400">
+            <svg className="w-16 h-16 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M11 4a2 2 0 114 0v1a1 1 0 001 1h3a1 1 0 011 1v3a1 1 0 01-1 1h-1a2 2 0 100 4h1a1 1 0 011 1v3a1 1 0 01-1 1h-3a1 1 0 01-1-1v-1a2 2 0 10-4 0v1a1 1 0 01-1 1H7a1 1 0 01-1-1v-3a1 1 0 00-1-1H4a2 2 0 110-4h1a1 1 0 001-1V7a1 1 0 011-1h3a1 1 0 001-1V4z"></path>
+            </svg>
+            <p className="text-lg">Select a section to edit</p>
+            <p className="text-sm mt-2">Click on any section in your resume to edit it or enhance it with AI</p>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+};
+
+export default EnhancedResumeEditor;

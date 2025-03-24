@@ -5,10 +5,10 @@ const prisma = new PrismaClient();
 
 export async function GET(request: NextRequest) {
   try {
-    // Get the job ID from the URL
+    // Get the job ID from the URL - handle both parameter names for compatibility
     const searchParams = request.nextUrl.searchParams;
-    const jobId = searchParams.get('jobId');
-
+    const jobId = searchParams.get('jobId') || searchParams.get('jobApplicationId');
+    
     console.log('Get resumes by job ID request:', jobId);
 
     if (!jobId) {

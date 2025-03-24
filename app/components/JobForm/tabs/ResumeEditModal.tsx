@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from "react";
 import { GeneratedResume } from "../types";
+import { markdownToHtml } from "@/app/lib/markdown-utils";
 
 interface ResumeEditModalProps {
   resume: GeneratedResume | null;
@@ -44,13 +45,11 @@ const ResumeEditModal: React.FC<ResumeEditModalProps> = ({
         onClose();
       }
     };
-
     if (isOpen) {
       document.addEventListener("mousedown", handleClickOutside);
     } else {
       document.removeEventListener("mousedown", handleClickOutside);
     }
-
     return () => {
       document.removeEventListener("mousedown", handleClickOutside);
     };
@@ -63,122 +62,15 @@ const ResumeEditModal: React.FC<ResumeEditModalProps> = ({
         onClose();
       }
     };
-
     if (isOpen) {
       document.addEventListener("keydown", handleEscKey);
     } else {
       document.removeEventListener("keydown", handleEscKey);
     }
-
     return () => {
       document.removeEventListener("keydown", handleEscKey);
     };
   }, [isOpen, onClose]);
-
-  // Format markdown for preview
-  const formatMarkdown = (text: string) => {
-    if (!text) return null;
-    
-    const lines = text.split('\n');
-    const formattedContent: React.ReactNode[] = [];
-    let listItems: React.ReactNode[] = [];
-    
-    lines.forEach((line, index) => {
-      const trimmedLine = line.trim();
-      
-      if (!trimmedLine) {
-        // Empty line - if we were building a list, close it
-        if (listItems.length > 0) {
-          formattedContent.push(
-            <ul key={`list-${index}`} className="list-disc pl-5 my-2">
-              {listItems}
-            </ul>
-          );
-          listItems = [];
-        }
-        return;
-      }
-      
-      // Process headings
-      if (trimmedLine.startsWith('# ')) {
-        formattedContent.push(
-          <h1 key={index} className="text-2xl font-bold text-center text-gray-800 dark:text-gray-200 mt-4 mb-2">
-            {trimmedLine.substring(2)}
-          </h1>
-        );
-      }
-      else if (trimmedLine.startsWith('## ')) {
-        formattedContent.push(
-          <h2 key={index} className="text-xl font-semibold text-gray-800 dark:text-gray-200 mt-5 mb-2 pb-1 border-b dark:border-gray-700">
-            {trimmedLine.substring(3)}
-          </h2>
-        );
-      }
-      else if (trimmedLine.startsWith('### ')) {
-        formattedContent.push(
-          <h3 key={index} className="text-lg font-medium text-gray-800 dark:text-gray-200 mt-4 mb-1">
-            {trimmedLine.substring(4)}
-          </h3>
-        );
-      }
-      // Process bullet points
-      else if (trimmedLine.startsWith('- ')) {
-        const content = trimmedLine.substring(2);
-        
-        listItems.push(
-          <li key={`item-${index}`} className="mb-1 text-gray-700 dark:text-gray-300">
-            {formatInlineMarkdown(content)}
-          </li>
-        );
-      }
-      // Process normal paragraphs
-      else {
-        // If we were building a list, close it before adding a paragraph
-        if (listItems.length > 0) {
-          formattedContent.push(
-            <ul key={`list-${index}`} className="list-disc pl-5 my-2">
-              {listItems}
-            </ul>
-          );
-          listItems = [];
-        }
-        
-        formattedContent.push(
-          <p key={index} className="mb-3 text-gray-700 dark:text-gray-300">
-            {formatInlineMarkdown(trimmedLine)}
-          </p>
-        );
-      }
-    });
-    
-    // If we have any remaining list items, add them
-    if (listItems.length > 0) {
-      formattedContent.push(
-        <ul className="list-disc pl-5 my-2">
-          {listItems}
-        </ul>
-      );
-    }
-    
-    return formattedContent;
-  };
-  
-  // Helper function to format inline markdown (bold, italic, etc.)
-  const formatInlineMarkdown = (text: string) => {
-    if (!text) return null;
-    
-    // Split the text by bold markers (**text**)
-    const parts = text.split(/(\*\*[^*]+\*\*)/g);
-    
-    return parts.map((part, index) => {
-      // Check if this part is bold (surrounded by **)
-      if (part.startsWith('**') && part.endsWith('**')) {
-        return <strong key={index} className="font-semibold">{part.slice(2, -2)}</strong>;
-      }
-      // Regular text
-      return <React.Fragment key={index}>{part}</React.Fragment>;
-    });
-  };
 
   const handleSave = async () => {
     if (!resume) return;
@@ -201,6 +93,18 @@ const ResumeEditModal: React.FC<ResumeEditModalProps> = ({
     } finally {
       setIsSaving(false);
     }
+  };
+
+  // Customize the HTML styling for this specific component
+  const markdownHtmlOptions = {
+    headingClass: {
+      h1: "text-2xl font-bold text-center text-gray-800 dark:text-gray-200 mt-4 mb-2",
+      h2: "text-xl font-semibold text-gray-800 dark:text-gray-200 mt-5 mb-2 pb-1 border-b dark:border-gray-700",
+      h3: "text-lg font-medium text-gray-800 dark:text-gray-200 mt-4 mb-1"
+    },
+    paragraphClass: "mb-3 text-gray-700 dark:text-gray-300",
+    listClass: "list-disc pl-5 my-2",
+    listItemClass: "mb-1 text-gray-700 dark:text-gray-300"
   };
 
   if (!isOpen || !resume) return null;
@@ -274,7 +178,11 @@ const ResumeEditModal: React.FC<ResumeEditModalProps> = ({
               }}
             >
               <div className="prose prose-lg dark:prose-invert max-w-none">
-                {formatMarkdown(content)}
+                <div 
+                  dangerouslySetInnerHTML={{ 
+                    __html: markdownToHtml(content, markdownHtmlOptions) 
+                  }} 
+                />
               </div>
             </div>
           </div>
@@ -297,7 +205,10 @@ const ResumeEditModal: React.FC<ResumeEditModalProps> = ({
           >
             {isSaving ? (
               <>
-                <span className="spinner mr-2"></span>
+                <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                </svg>
                 Saving...
               </>
             ) : (
