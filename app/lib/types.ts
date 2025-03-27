@@ -31,7 +31,18 @@ export interface JobFile {
   updatedAt: Date;
 }
 
-export type ResumeSectionType = "HEADER" | "SUMMARY" | "EXPERIENCE" | "EDUCATION" | "SKILLS" | "CERTIFICATIONS" | "PROJECTS" | "OTHER";
+// Changed from a union type to an enum
+export enum ResumeSectionType {
+  HEADER = "HEADER",
+  SUMMARY = "SUMMARY",
+  EXPERIENCE = "EXPERIENCE",
+  EDUCATION = "EDUCATION",
+  SKILLS = "SKILLS",
+  CERTIFICATIONS = "CERTIFICATIONS",
+  PROJECTS = "PROJECTS",
+  OTHER = "OTHER",
+  JOB_ROLE = "JOB_ROLE"
+}
 
 // app/lib/types.ts
 export interface ResumeSection {
@@ -39,6 +50,7 @@ export interface ResumeSection {
   type: ResumeSectionType;
   title: string; // Section title
   content: string; // Section content
+  parentId?: string; // Fixed the syntax error (removed extra question mark)
 }
 
 export interface FormState {

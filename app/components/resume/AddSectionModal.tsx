@@ -14,13 +14,13 @@ const AddSectionModal: React.FC<AddSectionModalProps> = ({
   onClose,
   onAddSection
 }) => {
-  const [selectedType, setSelectedType] = useState<ResumeSectionType>('SUMMARY');
+  const [selectedType, setSelectedType] = useState<ResumeSectionType>(ResumeSectionType.SUMMARY);
   const [customTitle, setCustomTitle] = useState('');
 
   // Reset state when modal opens
   React.useEffect(() => {
     if (isOpen) {
-      setSelectedType('SUMMARY');
+      setSelectedType(ResumeSectionType.SUMMARY);
       setCustomTitle('');
     }
   }, [isOpen]);
@@ -85,13 +85,13 @@ const AddSectionModal: React.FC<AddSectionModalProps> = ({
                 onChange={(e) => handleTypeSelection(e.target.value as ResumeSectionType)}
                 className="w-full p-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
               >
-                <option value="SUMMARY">Summary</option>
-                <option value="EXPERIENCE">Experience</option>
-                <option value="EDUCATION">Education</option>
-                <option value="SKILLS">Skills</option>
-                <option value="CERTIFICATIONS">Certifications</option>
-                <option value="PROJECTS">Projects</option>
-                <option value="OTHER">Custom Section</option>
+                <option value={ResumeSectionType.SUMMARY}>Summary</option>
+                <option value={ResumeSectionType.EXPERIENCE}>Experience</option>
+                <option value={ResumeSectionType.EDUCATION}>Education</option>
+                <option value={ResumeSectionType.SKILLS}>Skills</option>
+                <option value={ResumeSectionType.CERTIFICATIONS}>Certifications</option>
+                <option value={ResumeSectionType.PROJECTS}>Projects</option>
+                <option value={ResumeSectionType.OTHER}>Custom Section</option>
               </select>
               
               <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">

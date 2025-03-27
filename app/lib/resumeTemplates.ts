@@ -10,56 +10,56 @@ interface SectionTemplate {
 // Templates for different section types
 export const getSectionTemplate = (type: ResumeSectionType): SectionTemplate => {
   switch (type) {
-    case 'HEADER':
+    case ResumeSectionType.HEADER:
       return {
         title: 'Header',
         content: 'Your Name\nyour.email@example.com | (123) 456-7890 | City, State',
         description: 'Your name and contact information'
       };
     
-    case 'SUMMARY':
+    case ResumeSectionType.SUMMARY:
       return {
         title: 'Professional Summary',
         content: 'Experienced professional with X years in [industry/field]. Skilled in [key skills] with a proven track record of [notable achievement]. Seeking to leverage [skills/expertise] to drive results as a [target role].',
         description: 'A brief overview of your qualifications and career goals'
       };
       
-    case 'EXPERIENCE':
+    case ResumeSectionType.EXPERIENCE:
       return {
         title: 'Experience',
         content: '### Company Name | Job Title | MM/YYYY - Present\n- Achieved [specific, quantifiable result] by [action taken]\n- Led [project/initiative] that resulted in [positive outcome]\n- Developed and implemented [process/system] that improved [metric] by [percentage]\n\n### Previous Company | Previous Title | MM/YYYY - MM/YYYY\n- Spearheaded [initiative] resulting in [outcome]\n- Collaborated with [teams/departments] to deliver [results]',
         description: 'Your work history with accomplishments'
       };
       
-    case 'EDUCATION':
+    case ResumeSectionType.EDUCATION:
       return {
         title: 'Education',
         content: '### University Name\nDegree Name (Field of Study), Graduation Year\n- Notable achievement or honor\n- Relevant coursework',
         description: 'Your educational background and achievements'
       };
       
-    case 'SKILLS':
+    case ResumeSectionType.SKILLS:
       return {
         title: 'Skills',
         content: '**Technical Skills:** Skill 1, Skill 2, Skill 3\n**Soft Skills:** Communication, Leadership, Problem-solving\n**Languages:** English (Native), Spanish (Conversational)',
         description: 'List of relevant technical and soft skills'
       };
       
-    case 'CERTIFICATIONS':
+    case ResumeSectionType.CERTIFICATIONS:
       return {
         title: 'Certifications',
         content: '- Certification Name (Issuing Organization, Year)\n- Another Certification (Issuing Organization, Year)',
         description: 'Professional certifications and licenses'
       };
       
-    case 'PROJECTS':
+    case ResumeSectionType.PROJECTS:
       return {
         title: 'Projects',
         content: '### Project Name\n- Description of the project and your role\n- Technologies used: [list technologies]\n- Key outcome or achievement\n\n### Another Project\n- Brief description of your contribution\n- Impact or results',
         description: 'Highlight significant projects you have worked on'
       };
       
-    case 'OTHER':
+    case ResumeSectionType.OTHER:
       return {
         title: 'Additional Section',
         content: 'Content for your custom section goes here.\n- You can use bullet points\n- Or paragraphs\n\nFormat as needed.',
@@ -80,11 +80,11 @@ export const getSectionTemplatesForJobType = (jobType: string): SectionTemplate[
   const templates: SectionTemplate[] = [];
   
   // Common sections for all job types
-  templates.push(getSectionTemplate('HEADER'));
-  templates.push(getSectionTemplate('SUMMARY'));
-  templates.push(getSectionTemplate('EXPERIENCE'));
-  templates.push(getSectionTemplate('EDUCATION'));
-  templates.push(getSectionTemplate('SKILLS'));
+  templates.push(getSectionTemplate(ResumeSectionType.HEADER));
+  templates.push(getSectionTemplate(ResumeSectionType.SUMMARY));
+  templates.push(getSectionTemplate(ResumeSectionType.EXPERIENCE));
+  templates.push(getSectionTemplate(ResumeSectionType.EDUCATION));
+  templates.push(getSectionTemplate(ResumeSectionType.SKILLS));
   
   // Add job-specific sections
   if (jobType.toLowerCase().includes('developer') || 

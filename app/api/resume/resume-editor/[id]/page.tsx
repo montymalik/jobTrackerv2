@@ -4,7 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { useParams, useSearchParams } from 'next/navigation';
 // Remove the problematic import that's causing the build error
 // import { ResumeSection } from '@/app/lib/types';
-import EnhancedResumeEditor from '@/app/components/resume/EnhancedResumeEditor';
+import ResumeEditor from '@/app/components/resume/ResumeEditor';
 
 export default function ResumeEditorPage() {
   const params = useParams();
@@ -101,7 +101,7 @@ export default function ResumeEditorPage() {
       )}
       
       <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700">
-        <EnhancedResumeEditor
+        <ResumeEditor
           resumeId={resumeId}
           jobApplicationId={jobApplicationId || undefined}
           onSave={handleSaveResume}

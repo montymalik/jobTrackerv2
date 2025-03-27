@@ -19,6 +19,33 @@ interface GeminiResponse {
   candidates: GeminiResponseCandidate[];
 }
 
+// Function to extract clean JSON from markdown-wrapped responses
+function extractJsonFromMarkdown(text: string): string {
+  console.log("Extracting JSON from potential markdown...");
+  
+  // Check if response is wrapped in markdown code blocks
+  if (text.includes("```json") || text.includes("```")) {
+    // Try to extract JSON from markdown code blocks
+    const jsonMatch = text.match(/```(?:json)?\n([\s\S]*?)\n```/);
+    if (jsonMatch && jsonMatch[1]) {
+      console.log("JSON was wrapped in markdown code blocks, extracting clean JSON");
+      return jsonMatch[1].trim();
+    }
+  }
+  
+  // Check if the text is already a valid JSON object
+  try {
+    // Verify it's parsable as JSON
+    JSON.parse(text);
+    console.log("Response is already valid JSON");
+    return text;
+  } catch (error) {
+    // If not valid JSON and not in markdown blocks, return original
+    console.log("Response is not valid JSON or properly formatted markdown, returning as-is");
+    return text;
+  }
+}
+
 // Function to call Gemini API using direct fetch approach
 async function callGemini(prompt: string, model: string = 'gemini-2.0-flash-thinking-exp') {
   try {
@@ -61,7 +88,7 @@ async function callGemini(prompt: string, model: string = 'gemini-2.0-flash-thin
       throw new Error("No response from Gemini API.");
     }
     
-    console.log("Received message from Gemini API:", message);  // Debug log
+    console.log("Received message from Gemini API:", message.substring(0, 200) + "...");  // Debug log
     return message;
   } catch (error) {
     console.error("Error calling Gemini API:", error);
@@ -78,12 +105,30 @@ export async function POST(request: NextRequest) {
     }
     
     // Generate the resume using the direct API call approach
-    const resumeText = await callGemini(prompt, model);
+    const rawResumeText = await callGemini(prompt, model);
+    
+    // Extract clean JSON from the markdown-wrapped response
+    const cleanResumeText = extractJsonFromMarkdown(rawResumeText);
+    
+    // Validate that we have valid JSON before returning
+    try {
+      // This will throw if not valid JSON
+      JSON.parse(cleanResumeText);
+      console.log("Successfully extracted and validated JSON response");
+    } catch (error) {
+      console.warn("Failed to parse cleaned response as JSON, returning raw response instead");
+      console.warn("Error:", error);
+      // Return raw response as fallback
+      return NextResponse.json({ 
+        resume: rawResumeText,
+        warning: "Response could not be parsed as valid JSON"
+      });
+    }
     
     // Log for analytics or debugging
     console.log(`Generated resume for job ID: ${jobId || 'no-id'}`);
     
-    return NextResponse.json({ resume: resumeText });
+    return NextResponse.json({ resume: cleanResumeText });
   } catch (error) {
     console.error("Error in resume generation:", error);
     
