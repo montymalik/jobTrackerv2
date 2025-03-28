@@ -52,7 +52,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Configure the model - Gemini Pro is optimal for text generation tasks
-    const model = genAI.getGenerativeModel({ model: "gemini-pro" });
+    const model = genAI.getGenerativeModel({ model: "gemini-2.5-pro-exp-03-25" });
 
     // Set generation config for the resume content
     const generationConfig = {

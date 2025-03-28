@@ -47,7 +47,7 @@ function extractJsonFromMarkdown(text: string): string {
 }
 
 // Function to call Gemini API using direct fetch approach
-async function callGemini(prompt: string, model: string = 'gemini-2.0-flash-thinking-exp') {
+async function callGemini(prompt: string, model: string = 'gemini-2.5-pro-exp-03-25') {
   try {
     const GOOGLE_API_KEY = process.env.GOOGLE_API_KEY;
     if (!GOOGLE_API_KEY) {

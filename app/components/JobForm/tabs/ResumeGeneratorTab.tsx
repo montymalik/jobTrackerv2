@@ -412,7 +412,7 @@ Please create a resume for a [ROLE/POSITION] with experience in [INDUSTRY/FIELD]
         body: JSON.stringify({
           prompt,
           jobId: jobId || "temp-id",
-          model: "gemini-2.0-flash-thinking-exp"
+          model: "gemini-2.5-pro-exp-03-25"
         }),
       });
       
