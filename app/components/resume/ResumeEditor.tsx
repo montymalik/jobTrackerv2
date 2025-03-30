@@ -666,127 +666,196 @@ const ResumeEditor: React.FC<ResumeEditorProps> = ({
   }, [resumeSections, getSectionTypeOrder]);
   
   // Handle applying suggested content from the analyzer
- // Handle applying suggested content from the analyzer
-  const handleApplySuggestion = (sectionType: string, content: string, position?: string, company?: string, directRoleId?: string) => {
-    try {
-      console.log(`Applying suggestion - Type: ${sectionType}, DirectRoleId: ${directRoleId || 'none'}`);
+ // Add this function before handleApplySuggestion in ResumeEditor.tsx:
+
+// Function to preserve job role headers and update only bullet points
+const preserveJobRoleHeaderAndUpdateBullets = (originalContent: string, newBulletContent: string): string => {
+  try {
+    // Parse the original content
+    const originalDiv = document.createElement('div');
+    originalDiv.innerHTML = originalContent;
+    
+    // Parse the new bullet content
+    const newContentDiv = document.createElement('div');
+    newContentDiv.innerHTML = newBulletContent;
+    
+    // Extract the heading (job title, company, date)
+    const heading = originalDiv.querySelector('h3, h4, h5');
+    
+    // Extract paragraphs that might appear between heading and bullets
+    // These often contain job descriptions or context
+    const paragraphs: Element[] = [];
+    let currentElement = heading?.nextElementSibling;
+    
+    while (currentElement && currentElement.tagName !== 'UL') {
+      if (currentElement.tagName === 'P') {
+        paragraphs.push(currentElement.cloneNode(true) as Element);
+      }
+      currentElement = currentElement.nextElementSibling;
+    }
+    
+    // Extract the new bullet points (ul and its li children)
+    const newBulletList = newContentDiv.querySelector('ul');
+    
+    // Create a new combined content
+    const resultDiv = document.createElement('div');
+    
+    // Add the original heading if found
+    if (heading) {
+      resultDiv.appendChild(heading.cloneNode(true));
+    }
+    
+    // Add any paragraphs that were between the heading and list
+    paragraphs.forEach(p => {
+      resultDiv.appendChild(p);
+    });
+    
+    // Add the new bullet list
+    if (newBulletList) {
+      resultDiv.appendChild(newBulletList.cloneNode(true));
+    } else {
+      // If no new bullet list found, add the entire new content
+      resultDiv.innerHTML += newBulletContent;
+    }
+    
+    return resultDiv.innerHTML;
+  } catch (error) {
+    console.error('Error preserving job role header:', error);
+    // Fall back to the new content if any error occurs
+    return newBulletContent;
+  }
+};
+
+// Then replace your existing handleApplySuggestion function with this updated version:
+
+// Handle applying suggested content from the analyzer
+const handleApplySuggestion = (sectionType: string, content: string, position?: string, company?: string, directRoleId?: string) => {
+  try {
+    console.log(`Applying suggestion - Type: ${sectionType}, DirectRoleId: ${directRoleId || 'none'}`);
+    
+    if (sectionType.toLowerCase() === 'summary') {
+      console.log("Attempting to apply summary suggestion");
       
-      if (sectionType.toLowerCase() === 'summary') {
-        console.log("Attempting to apply summary suggestion");
-        
-        // First try using the direct role ID if provided
-        if (directRoleId) {
-          const directSection = resumeSections.find(s => s.id === directRoleId);
-          if (directSection) {
-            console.log(`Found section by directRoleId: ${directRoleId}`);
-            handleContentEdit(directSection.id, content);
-            setSaveSuccess(true);
-            setTimeout(() => setSaveSuccess(false), 3000);
-            return; // Exit early if found
-          }
-        }
-        
-        // Next try to find by type
-        const summarySection = resumeSections.find(s => s.type === ResumeSectionType.SUMMARY);
-        if (summarySection) {
-          console.log(`Found summary section by type: ${summarySection.id}`);
-          handleContentEdit(summarySection.id, content);
+      // First try using the direct role ID if provided
+      if (directRoleId) {
+        const directSection = resumeSections.find(s => s.id === directRoleId);
+        if (directSection) {
+          console.log(`Found section by directRoleId: ${directRoleId}`);
+          handleContentEdit(directSection.id, content);
           setSaveSuccess(true);
           setTimeout(() => setSaveSuccess(false), 3000);
-          return;
+          return; // Exit early if found
         }
-        
-        // Try by title as fallback
-        const summaryByTitle = resumeSections.find(s => 
-          s.title.toLowerCase().includes('summary') || 
-          s.title.toLowerCase().includes('profile')
-        );
-        if (summaryByTitle) {
-          console.log(`Found summary section by title: ${summaryByTitle.id}`);
-          handleContentEdit(summaryByTitle.id, content);
-          setSaveSuccess(true);
-          setTimeout(() => setSaveSuccess(false), 3000);
-          return;
-        }
-        
-        // Create a new summary section if not found
-        console.log("No summary section found, creating new one");
-        const newSummary: ResumeSection = {
-          id: 'summary',
-          title: 'Professional Summary',
-          type: ResumeSectionType.SUMMARY,
-          content: content
-        };
-        
-        // Find index after HEADER to insert the summary
-        const headerIndex = resumeSections.findIndex(s => s.type === ResumeSectionType.HEADER);
-        const insertIndex = headerIndex !== -1 ? headerIndex + 1 : 0;
-        
-        setResumeSections(prev => [
-          ...prev.slice(0, insertIndex),
-          newSummary,
-          ...prev.slice(insertIndex)
-        ]);
-        
+      }
+      
+      // Next try to find by type
+      const summarySection = resumeSections.find(s => s.type === ResumeSectionType.SUMMARY);
+      if (summarySection) {
+        console.log(`Found summary section by type: ${summarySection.id}`);
+        handleContentEdit(summarySection.id, content);
         setSaveSuccess(true);
         setTimeout(() => setSaveSuccess(false), 3000);
-      } else if (sectionType === 'experience') {
-        // First try using the direct role ID if provided
-        if (directRoleId) {
-          const targetSection = resumeSections.find(s => s.id === directRoleId);
-          if (targetSection) {
-            console.log(`Updating section by directRoleId: ${directRoleId}`);
-            handleContentEdit(targetSection.id, content);
+        return;
+      }
+      
+      // Try by title as fallback
+      const summaryByTitle = resumeSections.find(s => 
+        s.title.toLowerCase().includes('summary') || 
+        s.title.toLowerCase().includes('profile')
+      );
+      if (summaryByTitle) {
+        console.log(`Found summary section by title: ${summaryByTitle.id}`);
+        handleContentEdit(summaryByTitle.id, content);
+        setSaveSuccess(true);
+        setTimeout(() => setSaveSuccess(false), 3000);
+        return;
+      }
+      
+      // Create a new summary section if not found
+      console.log("No summary section found, creating new one");
+      const newSummary: ResumeSection = {
+        id: 'summary',
+        title: 'Professional Summary',
+        type: ResumeSectionType.SUMMARY,
+        content: content
+      };
+      
+      // Find index after HEADER to insert the summary
+      const headerIndex = resumeSections.findIndex(s => s.type === ResumeSectionType.HEADER);
+      const insertIndex = headerIndex !== -1 ? headerIndex + 1 : 0;
+      
+      setResumeSections(prev => [
+        ...prev.slice(0, insertIndex),
+        newSummary,
+        ...prev.slice(insertIndex)
+      ]);
+      
+      setSaveSuccess(true);
+      setTimeout(() => setSaveSuccess(false), 3000);
+    } else if (sectionType === 'experience') {
+      // First try using the direct role ID if provided
+      if (directRoleId) {
+        const targetSection = resumeSections.find(s => s.id === directRoleId);
+        if (targetSection) {
+          console.log(`Updating section by directRoleId: ${directRoleId}`);
+          // Preserve header and only update bullets
+          const preservedContent = preserveJobRoleHeaderAndUpdateBullets(targetSection.content, content);
+          handleContentEdit(targetSection.id, preservedContent);
+          setSaveSuccess(true);
+          setTimeout(() => setSaveSuccess(false), 3000);
+          return;
+        }
+      }
+      
+      // Next try matching by position and company names
+      if (position || company) {
+        const jobRoles = resumeSections.filter(s => s.type === ResumeSectionType.JOB_ROLE);
+        for (const role of jobRoles) {
+          const tempDiv = document.createElement('div');
+          tempDiv.innerHTML = role.content;
+          const heading = tempDiv.querySelector('h3, h4, h5')?.textContent || '';
+          
+          const hasPosition = position && (
+            heading.toLowerCase().includes(position.toLowerCase()) || 
+            role.title.toLowerCase().includes(position.toLowerCase())
+          );
+          
+          const hasCompany = company && (
+            heading.toLowerCase().includes(company.toLowerCase()) || 
+            role.content.toLowerCase().includes(company.toLowerCase())
+          );
+          
+          if ((position && company && hasPosition && hasCompany) || 
+              (position && !company && hasPosition) || 
+              (!position && company && hasCompany)) {
+            console.log(`Found matching role: ${role.id} - ${role.title}`);
+            // Preserve header and only update bullets
+            const preservedContent = preserveJobRoleHeaderAndUpdateBullets(role.content, content);
+            handleContentEdit(role.id, preservedContent);
             setSaveSuccess(true);
             setTimeout(() => setSaveSuccess(false), 3000);
             return;
           }
         }
-        
-        // Next try matching by position and company names
-        if (position || company) {
-          const jobRoles = resumeSections.filter(s => s.type === ResumeSectionType.JOB_ROLE);
-          for (const role of jobRoles) {
-            const tempDiv = document.createElement('div');
-            tempDiv.innerHTML = role.content;
-            const heading = tempDiv.querySelector('h3, h4, h5')?.textContent || '';
-            
-            const hasPosition = position && (
-              heading.toLowerCase().includes(position.toLowerCase()) || 
-              role.title.toLowerCase().includes(position.toLowerCase())
-            );
-            
-            const hasCompany = company && (
-              heading.toLowerCase().includes(company.toLowerCase()) || 
-              role.content.toLowerCase().includes(company.toLowerCase())
-            );
-            
-            if ((position && company && hasPosition && hasCompany) || 
-                (position && !company && hasPosition) || 
-                (!position && company && hasCompany)) {
-              console.log(`Found matching role: ${role.id} - ${role.title}`);
-              handleContentEdit(role.id, content);
-              setSaveSuccess(true);
-              setTimeout(() => setSaveSuccess(false), 3000);
-              return;
-            }
-          }
-        }
-        
-        // Fallback: update the first job role if no match is found
-        console.log('No matching job role found, updating the first one');
-        const jobRoles = resumeSections.filter(s => s.type === ResumeSectionType.JOB_ROLE);
-        if (jobRoles.length > 0) {
-          handleContentEdit(jobRoles[0].id, content);
-          setSaveSuccess(true);
-          setTimeout(() => setSaveSuccess(false), 3000);
-        }
       }
-    } catch (error) {
-      console.error('Error applying suggestion:', error);
-      setError('Failed to apply suggested content');
+      
+      // Fallback: update the first job role if no match is found
+      console.log('No matching job role found, updating the first one');
+      const jobRoles = resumeSections.filter(s => s.type === ResumeSectionType.JOB_ROLE);
+      if (jobRoles.length > 0) {
+        // Preserve header and only update bullets
+        const preservedContent = preserveJobRoleHeaderAndUpdateBullets(jobRoles[0].content, content);
+        handleContentEdit(jobRoles[0].id, preservedContent);
+        setSaveSuccess(true);
+        setTimeout(() => setSaveSuccess(false), 3000);
+      }
     }
-  }; // Update PDF export content whenever resumeSections change
+  } catch (error) {
+    console.error('Error applying suggestion:', error);
+    setError('Failed to apply suggested content');
+  }
+};
+  // Update PDF export content whenever resumeSections change
   useEffect(() => {
     if (resumeSections.length > 0) {
       updatePdfExportContent();
