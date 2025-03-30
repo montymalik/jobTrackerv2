@@ -5,6 +5,7 @@ export interface JobApplication {
   companyName: string;
   jobTitle: string;
   jobDescription?: string | null;
+  description?: string | null;
   jobUrl?: string | null;
   status: ApplicationStatus;
   dateApplied?: Date | null;

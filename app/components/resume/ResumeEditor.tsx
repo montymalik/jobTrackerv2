@@ -10,6 +10,7 @@ import BulletPointFormatter from './BulletPointFormatter';
 import ReadOnlyEditor from './tiptap/ReadOnlyEditor';
 import RichTextEditor from './tiptap/RichTextEditor';
 import { ResumeExportButton } from '@/app/lib/ResumeExporter';
+import AIResumeAnalyzer from './AIResumeAnalyzer';
 
 interface ResumeEditorProps {
   resumeId?: string;
@@ -103,6 +104,8 @@ const ResumeEditor: React.FC<ResumeEditorProps> = ({
   const [showTemplatePicker, setShowTemplatePicker] = useState(false);
   const [pdfExportContent, setPdfExportContent] = useState<string>('');
   const [sectionHierarchy, setSectionHierarchy] = useState<Record<string, string[]>>({});
+  const [jobDescription, setJobDescription] = useState<string>('');
+  const [showAnalyzer, setShowAnalyzer] = useState(false);
 
   // Process resume data from API response
   const processResumeData = (resumeData: any) => {
@@ -261,6 +264,66 @@ const ResumeEditor: React.FC<ResumeEditorProps> = ({
         // Process the resume data if found
         if (resumeData) {
           processResumeData(resumeData);
+        }
+        
+        // Fetch job description if we have a job application ID
+        if (jobApplicationId) {
+          try {
+            // First try with the job application endpoint
+            const jobAppResponse = await fetch(`/api/jobs/${jobApplicationId}`);
+            if (jobAppResponse.ok) {
+              const jobData = await jobAppResponse.json();
+              if (jobData.description) {
+                setJobDescription(jobData.description);
+                console.log("Found job description in job data:", jobData.description.substring(0, 50) + "...");
+              } else if (jobData.jobDescription) {
+                setJobDescription(jobData.jobDescription);
+                console.log("Found jobDescription in job data:", jobData.jobDescription.substring(0, 50) + "...");
+              } else {
+                console.warn('No job description found in job data, trying jobApplication endpoint');
+                
+                // Try with the jobApplication endpoint as fallback
+                try {
+                  const jobResponse = await fetch(`/api/jobApplications/${jobApplicationId}`);
+                  if (jobResponse.ok) {
+                    const jobAppData = await jobResponse.json();
+                    if (jobAppData.description) {
+                      setJobDescription(jobAppData.description);
+                      console.log("Found description in jobApplication data");
+                    } else if (jobAppData.jobDescription) {
+                      setJobDescription(jobAppData.jobDescription);
+                      console.log("Found jobDescription in jobApplication data");
+                    } else {
+                      console.warn('No job description found in any API response');
+                      setJobDescription('');
+                    }
+                  }
+                } catch (fallbackError) {
+                  console.error('Error fetching from jobApplication endpoint:', fallbackError);
+                }
+              }
+            } else {
+              console.warn('Job endpoint returned non-OK response, trying jobApplication endpoint');
+              // Try with the jobApplication endpoint as fallback
+              try {
+                const jobResponse = await fetch(`/api/jobApplications/${jobApplicationId}`);
+                if (jobResponse.ok) {
+                  const jobAppData = await jobResponse.json();
+                  if (jobAppData.description) {
+                    setJobDescription(jobAppData.description);
+                  } else if (jobAppData.jobDescription) {
+                    setJobDescription(jobAppData.jobDescription);
+                  } else {
+                    setJobDescription('');
+                  }
+                }
+              } catch (fallbackError) {
+                console.error('Error fetching from jobApplication endpoint:', fallbackError);
+              }
+            }
+          } catch (jobError) {
+            console.error('Error fetching job description:', jobError);
+          }
         }
       } catch (err) {
         console.error('Error fetching resume:', err);
@@ -602,7 +665,128 @@ const ResumeEditor: React.FC<ResumeEditorProps> = ({
     setPdfExportContent(markdownContent);
   }, [resumeSections, getSectionTypeOrder]);
   
-  // Update PDF export content whenever resumeSections change
+  // Handle applying suggested content from the analyzer
+ // Handle applying suggested content from the analyzer
+  const handleApplySuggestion = (sectionType: string, content: string, position?: string, company?: string, directRoleId?: string) => {
+    try {
+      console.log(`Applying suggestion - Type: ${sectionType}, DirectRoleId: ${directRoleId || 'none'}`);
+      
+      if (sectionType.toLowerCase() === 'summary') {
+        console.log("Attempting to apply summary suggestion");
+        
+        // First try using the direct role ID if provided
+        if (directRoleId) {
+          const directSection = resumeSections.find(s => s.id === directRoleId);
+          if (directSection) {
+            console.log(`Found section by directRoleId: ${directRoleId}`);
+            handleContentEdit(directSection.id, content);
+            setSaveSuccess(true);
+            setTimeout(() => setSaveSuccess(false), 3000);
+            return; // Exit early if found
+          }
+        }
+        
+        // Next try to find by type
+        const summarySection = resumeSections.find(s => s.type === ResumeSectionType.SUMMARY);
+        if (summarySection) {
+          console.log(`Found summary section by type: ${summarySection.id}`);
+          handleContentEdit(summarySection.id, content);
+          setSaveSuccess(true);
+          setTimeout(() => setSaveSuccess(false), 3000);
+          return;
+        }
+        
+        // Try by title as fallback
+        const summaryByTitle = resumeSections.find(s => 
+          s.title.toLowerCase().includes('summary') || 
+          s.title.toLowerCase().includes('profile')
+        );
+        if (summaryByTitle) {
+          console.log(`Found summary section by title: ${summaryByTitle.id}`);
+          handleContentEdit(summaryByTitle.id, content);
+          setSaveSuccess(true);
+          setTimeout(() => setSaveSuccess(false), 3000);
+          return;
+        }
+        
+        // Create a new summary section if not found
+        console.log("No summary section found, creating new one");
+        const newSummary: ResumeSection = {
+          id: 'summary',
+          title: 'Professional Summary',
+          type: ResumeSectionType.SUMMARY,
+          content: content
+        };
+        
+        // Find index after HEADER to insert the summary
+        const headerIndex = resumeSections.findIndex(s => s.type === ResumeSectionType.HEADER);
+        const insertIndex = headerIndex !== -1 ? headerIndex + 1 : 0;
+        
+        setResumeSections(prev => [
+          ...prev.slice(0, insertIndex),
+          newSummary,
+          ...prev.slice(insertIndex)
+        ]);
+        
+        setSaveSuccess(true);
+        setTimeout(() => setSaveSuccess(false), 3000);
+      } else if (sectionType === 'experience') {
+        // First try using the direct role ID if provided
+        if (directRoleId) {
+          const targetSection = resumeSections.find(s => s.id === directRoleId);
+          if (targetSection) {
+            console.log(`Updating section by directRoleId: ${directRoleId}`);
+            handleContentEdit(targetSection.id, content);
+            setSaveSuccess(true);
+            setTimeout(() => setSaveSuccess(false), 3000);
+            return;
+          }
+        }
+        
+        // Next try matching by position and company names
+        if (position || company) {
+          const jobRoles = resumeSections.filter(s => s.type === ResumeSectionType.JOB_ROLE);
+          for (const role of jobRoles) {
+            const tempDiv = document.createElement('div');
+            tempDiv.innerHTML = role.content;
+            const heading = tempDiv.querySelector('h3, h4, h5')?.textContent || '';
+            
+            const hasPosition = position && (
+              heading.toLowerCase().includes(position.toLowerCase()) || 
+              role.title.toLowerCase().includes(position.toLowerCase())
+            );
+            
+            const hasCompany = company && (
+              heading.toLowerCase().includes(company.toLowerCase()) || 
+              role.content.toLowerCase().includes(company.toLowerCase())
+            );
+            
+            if ((position && company && hasPosition && hasCompany) || 
+                (position && !company && hasPosition) || 
+                (!position && company && hasCompany)) {
+              console.log(`Found matching role: ${role.id} - ${role.title}`);
+              handleContentEdit(role.id, content);
+              setSaveSuccess(true);
+              setTimeout(() => setSaveSuccess(false), 3000);
+              return;
+            }
+          }
+        }
+        
+        // Fallback: update the first job role if no match is found
+        console.log('No matching job role found, updating the first one');
+        const jobRoles = resumeSections.filter(s => s.type === ResumeSectionType.JOB_ROLE);
+        if (jobRoles.length > 0) {
+          handleContentEdit(jobRoles[0].id, content);
+          setSaveSuccess(true);
+          setTimeout(() => setSaveSuccess(false), 3000);
+        }
+      }
+    } catch (error) {
+      console.error('Error applying suggestion:', error);
+      setError('Failed to apply suggested content');
+    }
+  }; // Update PDF export content whenever resumeSections change
   useEffect(() => {
     if (resumeSections.length > 0) {
       updatePdfExportContent();
@@ -633,6 +817,11 @@ const ResumeEditor: React.FC<ResumeEditorProps> = ({
       return resumeSections.indexOf(a) - resumeSections.indexOf(b);
     });
   }, [resumeSections, sectionHierarchy, getSectionTypeOrder]);
+
+  // Toggle the AI Resume Analyzer visibility
+  const toggleAnalyzer = () => {
+    setShowAnalyzer(!showAnalyzer);
+  };
 
   // Display loading indicator
   if (isLoading) {
@@ -675,6 +864,16 @@ const ResumeEditor: React.FC<ResumeEditorProps> = ({
                 Add Summary
               </button>
             )}
+            <button
+              onClick={toggleAnalyzer}
+              className={`px-3 py-1 rounded text-sm mr-2 ${
+                showAnalyzer 
+                  ? 'bg-purple-800 hover:bg-purple-900' 
+                  : 'bg-purple-600 hover:bg-purple-700'
+              }`}
+            >
+              {showAnalyzer ? 'Hide Analyzer' : 'ATS Analyzer'}
+            </button>
             <button
               onClick={handleSave}
               disabled={isSaving}
@@ -853,89 +1052,104 @@ const ResumeEditor: React.FC<ResumeEditorProps> = ({
         </div>
       </div>
       
-      {/* Right Column (1/3): Section Editor with TipTap */}
+      {/* Right Column (1/3): Either Section Editor or AI Resume Analyzer */}
       <div className="bg-gray-900 rounded-lg p-6 text-white">
-        <h2 className="text-lg font-bold mb-4">Section Editor</h2>
-        {activeSection ? (
+        {showAnalyzer ? (
           <>
-            <div className="mb-4">
-              <label className="block text-sm mb-1">Section Title</label>
-              <input
-                type="text"
-                value={resumeSections.find(s => s.id === activeSection)?.title || ''}
-                onChange={(e) => {
-                  setResumeSections(prevSections => 
-                    prevSections.map(section => 
-                      section.id === activeSection 
-                        ? { ...section, title: e.target.value }
-                        : section
-                    )
-                  );
-                }}
-                className="w-full p-2 bg-gray-800 border border-gray-700 rounded-md text-white"
-              />
-            </div>
-            
-            {/* TipTap Editor instead of textarea */}
-            <div className="mb-4">
-              <div className="flex justify-between items-center mb-1">
-                <label className="block text-sm">Content</label>
-                <div>
-                  <button
-                    onClick={() => setShowTemplatePicker(!showTemplatePicker)}
-                    className="text-xs text-blue-400 hover:text-blue-300"
-                  >
-                    {showTemplatePicker ? 'Hide Templates' : 'Show Templates'}
-                  </button>
-                </div>
-              </div>
-              
-              {showTemplatePicker && (
-                <div className="mb-4">
-                  <ResumeTemplatesPicker onSelectTemplate={handleTemplateSelect} />
-                </div>
-              )}
-              
-              {/* TipTap Editor */}
-              <div className="bg-gray-800 border border-gray-700 rounded-md">
-                <RichTextEditor 
-                  content={resumeSections.find(s => s.id === activeSection)?.content || ''}
-                  onUpdate={(html) => {
-                    if (activeSection) {
-                      handleContentEdit(activeSection, html);
-                    }
-                  }}
-                />
-              </div>
-            </div>
-            
-            {/* BulletPointFormatter for job roles */}
-            <BulletPointFormatter
-              currentSection={activeSection}
-              sections={resumeSections}
-              onUpdateContent={handleContentEdit}
+            {/* Job description functionality maintained but input box hidden */}
+            <AIResumeAnalyzer 
+              resumeId={currentResumeId}
+              jobDescription={jobDescription}
+              jobApplicationId={jobApplicationId}
+              resumeSections={resumeSections}
+              onApplySuggestion={handleApplySuggestion}
             />
-            
-            {/* Editor Tips */}
-            <div className="mt-4 bg-gray-800 p-3 rounded-md text-xs text-gray-300">
-              <h4 className="font-bold mb-1">Editor Tips:</h4>
-              <ul className="list-disc pl-4 space-y-1">
-                <li>Use the toolbar to format your text (bold, italic, headings, etc.)</li>
-                <li>Create bullet points using the list icon in the toolbar</li>
-                <li>Indent text using the tab key or the indent button</li>
-                <li>Use the "Format Bullet Points" button to automatically align bullet points</li>
-                <li>Tables can be added for structured data such as skills or certifications</li>
-              </ul>
-            </div>
           </>
         ) : (
-          <div className="flex flex-col items-center justify-center h-64 text-center text-gray-400">
-            <svg className="w-16 h-16 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M11 4a2 2 0 114 0v1a1 1 0 001 1h3a1 1 0 011 1v3a1 1 0 01-1 1h-1a2 2 0 100 4h1a1 1 0 011 1v3a1 1 0 01-1 1h-3a1 1 0 01-1-1v-1a2 2 0 10-4 0v1a1 1 0 01-1 1H7a1 1 0 01-1-1v-3a1 1 0 00-1-1H4a2 2 0 110-4h1a1 1 0 001-1V7a1 1 0 011-1h3a1 1 0 001-1V4z"></path>
-            </svg>
-            <p className="text-lg">Select a section to edit</p>
-            <p className="text-sm mt-2">Click on any section in your resume to edit it</p>
-          </div>
+          <>
+            <h2 className="text-lg font-bold mb-4">Section Editor</h2>
+            {activeSection ? (
+              <>
+                <div className="mb-4">
+                  <label className="block text-sm mb-1">Section Title</label>
+                  <input
+                    type="text"
+                    value={resumeSections.find(s => s.id === activeSection)?.title || ''}
+                    onChange={(e) => {
+                      setResumeSections(prevSections => 
+                        prevSections.map(section => 
+                          section.id === activeSection 
+                            ? { ...section, title: e.target.value }
+                            : section
+                        )
+                      );
+                    }}
+                    className="w-full p-2 bg-gray-800 border border-gray-700 rounded-md text-white"
+                  />
+                </div>
+                
+                {/* TipTap Editor instead of textarea */}
+                <div className="mb-4">
+                  <div className="flex justify-between items-center mb-1">
+                    <label className="block text-sm">Content</label>
+                    <div>
+                      <button
+                        onClick={() => setShowTemplatePicker(!showTemplatePicker)}
+                        className="text-xs text-blue-400 hover:text-blue-300"
+                      >
+                        {showTemplatePicker ? 'Hide Templates' : 'Show Templates'}
+                      </button>
+                    </div>
+                  </div>
+                  
+                  {showTemplatePicker && (
+                    <div className="mb-4">
+                      <ResumeTemplatesPicker onSelectTemplate={handleTemplateSelect} />
+                    </div>
+                  )}
+                  
+                  {/* TipTap Editor */}
+                  <div className="bg-gray-800 border border-gray-700 rounded-md">
+                    <RichTextEditor 
+                      content={resumeSections.find(s => s.id === activeSection)?.content || ''}
+                      onUpdate={(html) => {
+                        if (activeSection) {
+                          handleContentEdit(activeSection, html);
+                        }
+                      }}
+                    />
+                  </div>
+                </div>
+                
+                {/* BulletPointFormatter for job roles */}
+                <BulletPointFormatter
+                  currentSection={activeSection}
+                  sections={resumeSections}
+                  onUpdateContent={handleContentEdit}
+                />
+                
+                {/* Editor Tips */}
+                <div className="mt-4 bg-gray-800 p-3 rounded-md text-xs text-gray-300">
+                  <h4 className="font-bold mb-1">Editor Tips:</h4>
+                  <ul className="list-disc pl-4 space-y-1">
+                    <li>Use the toolbar to format your text (bold, italic, headings, etc.)</li>
+                    <li>Create bullet points using the list icon in the toolbar</li>
+                    <li>Indent text using the tab key or the indent button</li>
+                    <li>Use the "Format Bullet Points" button to automatically align bullet points</li>
+                    <li>Tables can be added for structured data such as skills or certifications</li>
+                  </ul>
+                </div>
+              </>
+            ) : (
+              <div className="flex flex-col items-center justify-center h-64 text-center text-gray-400">
+                <svg className="w-16 h-16 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M11 4a2 2 0 114 0v1a1 1 0 001 1h3a1 1 0 011 1v3a1 1 0 01-1 1h-1a2 2 0 100 4h1a1 1 0 011 1v3a1 1 0 01-1 1h-3a1 1 0 01-1-1v-1a2 2 0 10-4 0v1a1 1 0 01-1 1H7a1 1 0 01-1-1v-3a1 1 0 00-1-1H4a2 2 0 110-4h1a1 1 0 001-1V7a1 1 0 011-1h3a1 1 0 001-1V4z"></path>
+                </svg>
+                <p className="text-lg">Select a section to edit</p>
+                <p className="text-sm mt-2">Click on any section in your resume to edit it</p>
+              </div>
+            )}
+          </>
         )}
       </div>
     </div>
