@@ -2,10 +2,10 @@
 import { useState, useEffect, useCallback } from 'react';
 import { ResumeSection, ResumeSectionType } from '@/app/lib/types';
 import { useResumeApi } from './useResumeApi';
-import { parseJsonContent, processHtmlContent, buildSectionHierarchy } from '../utils/resume-parsing-utils';
+import { parseJsonContent, buildSectionHierarchy } from '../utils/resume-parsing-utils';
 import { enhanceResumeSections, formatSectionContent } from '@/app/lib/section-extraction-utils';
 import { parseResumeWithCheerio, cheerioNormalizeHtml } from '@/app/lib/cheerio-parser';
-import { jsonResumeToSections, resumeDataToSections } from '@/app/lib/json-resume-processor';
+import { jsonResumeToSections } from '@/app/lib/json-resume-processor';
 
 /**
  * Custom hook to manage resume data state
@@ -32,6 +32,78 @@ export function useResumeData(resumeId?: string, jobApplicationId?: string) {
     saveSuccess,
     setSaveSuccess
   } = useResumeApi();
+
+  /**
+   * Simple fallback function to convert resume data to sections
+   * This replaces the imported resumeDataToSections that isn't available
+   */
+  const resumeDataToSections = useCallback((resumeData: any): ResumeSection[] => {
+    try {
+      // Try to use jsonResumeToSections if the data structure looks like JSON resume
+      if (resumeData.basics && (resumeData.work || resumeData.education)) {
+        return jsonResumeToSections(resumeData);
+      }
+      
+      // Create minimal sections for basic resume data
+      const sections: ResumeSection[] = [];
+      
+      // Add header section
+      sections.push({
+        id: 'header',
+        title: 'Header',
+        type: ResumeSectionType.HEADER,
+        content: `<h1 class="text-3xl font-bold">${resumeData.name || 'Your Name'}</h1>
+                 <p>${resumeData.email || 'Email'} • ${resumeData.phone || 'Phone'} • ${resumeData.location || 'Location'}</p>`
+      });
+      
+      // Add summary section if content available
+      if (resumeData.summary || resumeData.objective) {
+        sections.push({
+          id: 'summary',
+          title: 'Professional Summary',
+          type: ResumeSectionType.SUMMARY,
+          content: `<div class="mb-6"><p class="text-gray-200">${resumeData.summary || resumeData.objective || 'Professional summary...'}</p></div>`
+        });
+      }
+      
+      // Add experience section
+      sections.push({
+        id: 'experience',
+        title: 'Experience',
+        type: ResumeSectionType.EXPERIENCE,
+        content: '<h2 class="text-xl font-semibold text-white">Professional Experience</h2>'
+      });
+      
+      // Add education section
+      sections.push({
+        id: 'education',
+        title: 'Education',
+        type: ResumeSectionType.EDUCATION,
+        content: '<h2 class="text-xl font-semibold text-white">Education</h2><p class="text-gray-200">Education details...</p>'
+      });
+      
+      // Add skills section
+      sections.push({
+        id: 'skills',
+        title: 'Skills',
+        type: ResumeSectionType.SKILLS,
+        content: '<h2 class="text-xl font-semibold text-white">Skills</h2><p class="text-gray-200">Your skills...</p>'
+      });
+      
+      return sections;
+    } catch (error) {
+      console.error("Error in fallback resumeDataToSections:", error);
+      // Return minimal set of sections
+      return [
+        {
+          id: 'header',
+          title: 'Header',
+          type: ResumeSectionType.HEADER,
+          content: '<h1 class="text-3xl font-bold">Your Name</h1><p>Email • Phone • Location</p>'
+        }
+      ];
+    }
+  }, []);
 
   /**
    * Process resume data from API response
@@ -90,8 +162,8 @@ export function useResumeData(resumeId?: string, jobApplicationId?: string) {
             throw new Error("Cheerio parsing returned no sections");
           }
         } catch (cheerioError) {
-          console.warn("Cheerio parsing failed, using default resume parser:", cheerioError);
-          // Fall back to default parser
+          console.warn("Cheerio parsing failed, using fallback resume parser:", cheerioError);
+          // Fall back to our own implementation
           sections = resumeDataToSections(resumeData);
         }
       }
@@ -144,7 +216,7 @@ export function useResumeData(resumeId?: string, jobApplicationId?: string) {
         setResumeSections([defaultHeader]);
       }
     }
-  }, [setError]);
+  }, [resumeDataToSections, setError]);
 
   // Fetch resume data on component mount or when IDs change
   useEffect(() => {
