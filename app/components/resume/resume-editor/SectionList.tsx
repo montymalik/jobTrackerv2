@@ -9,7 +9,12 @@ interface SectionItemProps {
   isActive: boolean;
   onSectionClick: (sectionId: string) => void;
   onDeleteSection: (sectionId: string, e: React.MouseEvent) => void;
+  onMoveUp: (sectionId: string, e: React.MouseEvent) => void;
+  onMoveDown: (sectionId: string, e: React.MouseEvent) => void;
   canDelete: boolean;
+  canMove: boolean;
+  isFirstSection: boolean;
+  isLastSection: boolean;
 }
 
 const SectionItem: React.FC<SectionItemProps> = ({ 
@@ -17,7 +22,12 @@ const SectionItem: React.FC<SectionItemProps> = ({
   isActive, 
   onSectionClick, 
   onDeleteSection,
-  canDelete
+  onMoveUp,
+  onMoveDown,
+  canDelete,
+  canMove,
+  isFirstSection,
+  isLastSection
 }) => {
   return (
     <div 
@@ -35,6 +45,48 @@ const SectionItem: React.FC<SectionItemProps> = ({
             : section.title}
         </h3>
         <div className="flex space-x-2">
+          {/* Position control buttons */}
+          {canMove && (
+            <div className="flex mr-2">
+              <button 
+                className={`text-xs px-2 py-1 rounded ${
+                  isFirstSection 
+                    ? 'bg-gray-800 text-gray-500 cursor-not-allowed' 
+                    : 'bg-gray-700 hover:bg-gray-600'
+                }`}
+                onClick={(e) => {
+                  e.stopPropagation(); // Prevent parent div's onClick from firing
+                  if (!isFirstSection) onMoveUp(section.id, e);
+                }}
+                disabled={isFirstSection}
+                aria-label="Move section up"
+                title="Move section up"
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 15l7-7 7 7"></path>
+                </svg>
+              </button>
+              <button 
+                className={`text-xs px-2 py-1 rounded ml-1 ${
+                  isLastSection 
+                    ? 'bg-gray-800 text-gray-500 cursor-not-allowed' 
+                    : 'bg-gray-700 hover:bg-gray-600'
+                }`}
+                onClick={(e) => {
+                  e.stopPropagation(); // Prevent parent div's onClick from firing
+                  if (!isLastSection) onMoveDown(section.id, e);
+                }}
+                disabled={isLastSection}
+                aria-label="Move section down"
+                title="Move section down"
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7"></path>
+                </svg>
+              </button>
+            </div>
+          )}
+          
           <button 
             className="text-xs bg-gray-700 hover:bg-gray-600 px-2 py-1 rounded"
             onClick={(e) => {
@@ -73,8 +125,13 @@ interface SectionListProps {
   activeSection: string | null;
   onSectionClick: (sectionId: string) => void;
   onDeleteSection: (sectionId: string, e: React.MouseEvent) => void;
+  onMoveUp: (sectionId: string, e: React.MouseEvent) => void;
+  onMoveDown: (sectionId: string, e: React.MouseEvent) => void;
+  handleMoveChildUp?: (sectionId: string) => void;
+  handleMoveChildDown?: (sectionId: string) => void;
   onAddJobRole: () => void;
   shouldShowAddJobRoleButton: (section: ResumeSection) => boolean;
+  canMoveSection: (section: ResumeSection) => boolean;
 }
 
 export const SectionList: React.FC<SectionListProps> = ({
@@ -84,8 +141,13 @@ export const SectionList: React.FC<SectionListProps> = ({
   activeSection,
   onSectionClick,
   onDeleteSection,
+  onMoveUp,
+  onMoveDown,
+  handleMoveChildUp,
+  handleMoveChildDown,
   onAddJobRole,
-  shouldShowAddJobRoleButton
+  shouldShowAddJobRoleButton,
+  canMoveSection
 }) => {
   // Check if a section can be deleted
   const canDeleteSection = (section: ResumeSection): boolean => {
@@ -109,6 +171,83 @@ export const SectionList: React.FC<SectionListProps> = ({
     return true;
   };
 
+  // Check if a section is a child section (has a parent)
+  const isChildSection = (section: ResumeSection): boolean => {
+    return Boolean(section.parentId);
+  };
+
+  // Handler for moving sections up with logic to handle both parent and child sections
+  const handleMoveUpWithHierarchy = (sectionId: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    
+    // First, try to find the section in our list
+    const section = sections.find(s => s.id === sectionId);
+    if (!section) {
+      console.error(`Section with ID ${sectionId} not found`);
+      return;
+    }
+    
+    // Debug what we know about this section
+    console.log(`Handling move UP for section:`, {
+      id: section.id,
+      title: section.title,
+      type: section.type,
+      hasParent: Boolean(section.parentId),
+      parentId: section.parentId,
+      canMove: canMoveSection(section)
+    });
+    
+    // For child sections with a parent, use handleMoveChildUp
+    if (section.parentId && handleMoveChildUp) {
+      console.log(`Using handleMoveChildUp for ${section.id}`);
+      handleMoveChildUp(sectionId);
+    } 
+    // For top-level sections, use the regular onMoveUp
+    else if (canMoveSection(section)) {
+      console.log(`Using regular onMoveUp for ${section.id}`);
+      onMoveUp(sectionId, e);
+    }
+    else {
+      console.log(`Section ${section.id} cannot be moved`);
+    }
+  };
+
+  // Handler for moving sections down with logic to handle both parent and child sections
+  const handleMoveDownWithHierarchy = (sectionId: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    
+    // First, try to find the section in our list
+    const section = sections.find(s => s.id === sectionId);
+    if (!section) {
+      console.error(`Section with ID ${sectionId} not found`);
+      return;
+    }
+    
+    // Debug what we know about this section
+    console.log(`Handling move DOWN for section:`, {
+      id: section.id,
+      title: section.title,
+      type: section.type,
+      hasParent: Boolean(section.parentId),
+      parentId: section.parentId,
+      canMove: canMoveSection(section)
+    });
+    
+    // For child sections with a parent, use handleMoveChildDown
+    if (section.parentId && handleMoveChildDown) {
+      console.log(`Using handleMoveChildDown for ${section.id}`);
+      handleMoveChildDown(sectionId);
+    } 
+    // For top-level sections, use the regular onMoveDown
+    else if (canMoveSection(section)) {
+      console.log(`Using regular onMoveDown for ${section.id}`);
+      onMoveDown(sectionId, e);
+    }
+    else {
+      console.log(`Section ${section.id} cannot be moved`);
+    }
+  };
+
   // Display message if no sections exist
   if (topLevelSections.length === 0) {
     return (
@@ -120,7 +259,7 @@ export const SectionList: React.FC<SectionListProps> = ({
 
   return (
     <div className="space-y-4">
-      {topLevelSections.map((section) => (
+      {topLevelSections.map((section, index) => (
         <div key={section.id} className="relative">
           {/* Render top-level section */}
           <SectionItem 
@@ -128,15 +267,24 @@ export const SectionList: React.FC<SectionListProps> = ({
             isActive={activeSection === section.id}
             onSectionClick={onSectionClick}
             onDeleteSection={onDeleteSection}
+            onMoveUp={handleMoveUpWithHierarchy}
+            onMoveDown={handleMoveDownWithHierarchy}
             canDelete={canDeleteSection(section)}
+            canMove={canMoveSection(section)}
+            isFirstSection={index === 0 || !canMoveSection(topLevelSections[index - 1])}
+            isLastSection={index === topLevelSections.length - 1}
           />
           
           {/* Render child sections (e.g., job roles under experience) */}
           {sectionHierarchy[section.id] && sectionHierarchy[section.id].length > 0 && (
             <div className="ml-6 mt-2 space-y-4">
-              {sectionHierarchy[section.id].map(childId => {
+              {sectionHierarchy[section.id].map((childId, childIndex) => {
                 const childSection = sections.find(s => s.id === childId);
                 if (!childSection) return null;
+                
+                const childSections = sectionHierarchy[section.id]
+                  .map(id => sections.find(s => s.id === id))
+                  .filter(Boolean) as ResumeSection[];
                 
                 return (
                   <SectionItem
@@ -145,7 +293,12 @@ export const SectionList: React.FC<SectionListProps> = ({
                     isActive={activeSection === childSection.id}
                     onSectionClick={onSectionClick}
                     onDeleteSection={onDeleteSection}
+                    onMoveUp={handleMoveUpWithHierarchy}
+                    onMoveDown={handleMoveDownWithHierarchy}
                     canDelete={canDeleteSection(childSection)}
+                    canMove={canMoveSection(childSection)}
+                    isFirstSection={childIndex === 0}
+                    isLastSection={childIndex === childSections.length - 1}
                   />
                 );
               })}

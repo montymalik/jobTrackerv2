@@ -3,28 +3,23 @@ import React, { useState, useMemo } from 'react';
 import { ResumeExportButton } from '@/app/lib/ResumeExporter';
 import { ResumeSection, ResumeSectionType } from '@/app/lib/types';
 import AIResumeAnalyzer from './AIResumeAnalyzer';
-
 // Import refactored components
 import { SectionList } from './resume-editor/SectionList';
 import { SectionEditor } from './resume-editor/SectionEditor';
 import { ErrorBoundary } from './resume-editor/ErrorBoundary';
-
 // Import custom hooks
 import { useResumeData } from './resume-editor/hooks/useResumeData';
 import { useSectionManagement } from './resume-editor/hooks/useSectionManagement';
 import { usePdfExport } from './resume-editor/hooks/usePdfExport';
-
 interface ResumeEditorProps {
   resumeId?: string;
   jobApplicationId?: string;
   onSave?: (sections: ResumeSection[]) => Promise<void>;
 }
-
 const ResumeEditor: React.FC<ResumeEditorProps> = ({ resumeId, jobApplicationId }) => {
   // UI state
   const [showAnalyzer, setShowAnalyzer] = useState(false);
   const [showTemplatePicker, setShowTemplatePicker] = useState(false);
-
   // Get resume data and methods from custom hooks
   const {
     resumeSections,
@@ -41,7 +36,6 @@ const ResumeEditor: React.FC<ResumeEditorProps> = ({ resumeId, jobApplicationId 
     setSectionHierarchy,
     handleSave
   } = useResumeData(resumeId, jobApplicationId);
-
   const {
     activeSection,
     setActiveSection,
@@ -53,7 +47,12 @@ const ResumeEditor: React.FC<ResumeEditorProps> = ({ resumeId, jobApplicationId 
     handleAddJobRole,
     shouldShowAddJobRoleButton,
     handleApplySuggestion, // Make sure this is included
-    getSectionTypeOrder
+    getSectionTypeOrder,
+    canMoveSection,
+    handleMoveUp,
+    handleMoveDown,
+    handleMoveChildUp, // Add this
+    handleMoveChildDown // Add this
   } = useSectionManagement(
     resumeSections, 
     setResumeSections, 
@@ -61,12 +60,9 @@ const ResumeEditor: React.FC<ResumeEditorProps> = ({ resumeId, jobApplicationId 
     setSectionHierarchy,
     setSaveSuccess // Pass the setSaveSuccess function to the hook
   );
-
   const { pdfExportContent } = usePdfExport(resumeSections, getSectionTypeOrder);
-
   // Toggle analyzer visibility
   const toggleAnalyzer = () => setShowAnalyzer(prev => !prev);
-
   // Memoize expensive calculations
   const sortedTopLevelSections = useMemo(() => {
     // Filter out only top-level sections
@@ -74,38 +70,30 @@ const ResumeEditor: React.FC<ResumeEditorProps> = ({ resumeId, jobApplicationId 
       !section.parentId || Object.keys(sectionHierarchy).includes(section.id)
     );
     
-    // Sort by section type
-    return [...topLevelSections].sort((a, b) => {
-      const orderA = getSectionTypeOrder(a.type);
-      const orderB = getSectionTypeOrder(b.type);
-      if (orderA !== orderB) {
-        return orderA - orderB;
-      }
-      return resumeSections.indexOf(a) - resumeSections.indexOf(b);
-    });
-  }, [resumeSections, sectionHierarchy, getSectionTypeOrder]);
-
-  // Add some debugging to check if handleApplySuggestion is valid
-  console.log("handleApplySuggestion is a function:", typeof handleApplySuggestion === 'function');
-
-  // Loading state
-  if (isLoading) {
-    return (
-      <div className="flex justify-center items-center h-64">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500"></div>
-      </div>
+    // Important: Keep the exact same order as in resumeSections
+    // Just ensure Header and Summary are at the top
+    
+    // First extract Header and Summary
+    const header = topLevelSections.find(s => s.type === ResumeSectionType.HEADER);
+    const summary = topLevelSections.find(s => 
+      s.type === ResumeSectionType.SUMMARY && s.id === 'summary'
     );
-  }
-
-  // Error state
-  if (error && !resumeSections.length) {
-    return (
-      <div className="text-center py-8 text-red-500">
-        Error: {error}
-      </div>
+    
+    // Then get all other sections in their original order
+    const otherSections = topLevelSections.filter(s => 
+      s.type !== ResumeSectionType.HEADER && 
+      !(s.type === ResumeSectionType.SUMMARY && s.id === 'summary')
     );
-  }
-
+    
+    // Combine them in the correct order
+    const result = [];
+    if (header) result.push(header);
+    if (summary) result.push(summary);
+    result.push(...otherSections);
+    
+    console.log('Sorted sections:', result.map(s => s.title));
+    return result;
+  }, [resumeSections, sectionHierarchy]);
   // No data state
   if (!isLoading && resumeSections.length === 0) {
     return (
@@ -132,7 +120,6 @@ const ResumeEditor: React.FC<ResumeEditorProps> = ({ resumeId, jobApplicationId 
       </div>
     );
   }
-
   return (
     <ErrorBoundary>
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -212,8 +199,19 @@ const ResumeEditor: React.FC<ResumeEditorProps> = ({ resumeId, jobApplicationId 
             activeSection={activeSection}
             onSectionClick={handleSectionClick}
             onDeleteSection={handleDeleteSection}
+            onMoveUp={(sectionId, e) => {
+              e.stopPropagation();
+              handleMoveUp(sectionId);
+            }}
+            onMoveDown={(sectionId, e) => {
+             e.stopPropagation();
+             handleMoveDown(sectionId);
+            }}
+            handleMoveChildUp={handleMoveChildUp}
+            handleMoveChildDown={handleMoveChildDown}
             onAddJobRole={handleAddJobRole}
             shouldShowAddJobRoleButton={shouldShowAddJobRoleButton}
+            canMoveSection={canMoveSection}
           />
           
           {/* Status Messages */}
@@ -256,5 +254,4 @@ const ResumeEditor: React.FC<ResumeEditorProps> = ({ resumeId, jobApplicationId 
     </ErrorBoundary>
   );
 };
-
 export default ResumeEditor;

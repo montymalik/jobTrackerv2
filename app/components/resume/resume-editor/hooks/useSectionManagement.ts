@@ -2,7 +2,6 @@
 import { useState, useCallback } from 'react';
 import { ResumeSection, ResumeSectionType } from '@/app/lib/types';
 import { preserveJobRoleHeaderAndUpdateBullets } from '../utils/resume-parsing-utils';
-
 /**
  * Custom hook for managing resume sections
  * Handles operations like adding, editing, and deleting sections
@@ -16,7 +15,6 @@ export function useSectionManagement(
 ) {
   // Track the currently active (selected) section
   const [activeSection, setActiveSection] = useState<string | null>(null);
-
   /**
    * Get the display order for section types
    * Used for sorting sections in a consistent order
@@ -35,14 +33,12 @@ export function useSectionManagement(
     };
     return order[type] ?? 999;
   }, []);
-
   /**
    * Handle click on a section to make it active for editing
    */
   const handleSectionClick = useCallback((sectionId: string) => {
     setActiveSection(sectionId);
   }, []);
-
   /**
    * Update section content
    */
@@ -55,7 +51,99 @@ export function useSectionManagement(
       )
     );
   }, [setResumeSections]);
-
+  /**
+   * Check if a section can be moved
+   * Header and Professional Summary should be fixed
+   */
+  const canMoveSection = useCallback((section: ResumeSection): boolean => {
+    return (
+      section.type !== ResumeSectionType.HEADER && 
+      !(section.type === ResumeSectionType.SUMMARY && section.id === 'summary')
+    );
+  }, []);
+  /**
+   * Move a section up in the order
+   */
+  const handleMoveUp = useCallback((sectionId: string) => {
+    console.log('Move up clicked for section:', sectionId);
+    
+    setResumeSections(prevSections => {
+      // Make a copy of the array first
+      let newSections = [...prevSections];
+      
+      // Find the current index of the section
+      const sectionIndex = newSections.findIndex(s => s.id === sectionId);
+      console.log('Current section index:', sectionIndex);
+      
+      if (sectionIndex <= 0) {
+        console.log('Already at top, cannot move up');
+        return prevSections; // Can't move up if it's the first section
+      }
+      
+      const section = newSections[sectionIndex];
+      if (!canMoveSection(section)) {
+        console.log('Section cannot be moved (fixed section)');
+        return prevSections; // Can't move fixed sections
+      }
+      
+      // Get the section above
+      const prevSection = newSections[sectionIndex - 1];
+      
+      // Don't move past Header or Summary sections
+      if (prevSection.type === ResumeSectionType.HEADER || 
+          (prevSection.type === ResumeSectionType.SUMMARY && prevSection.id === 'summary')) {
+        console.log('Cannot move past fixed section');
+        return prevSections;
+      }
+      
+      console.log('Moving section up:', section.title);
+      console.log('Before:', newSections.map(s => s.title));
+      
+      // Swap the two sections
+      newSections.splice(sectionIndex - 1, 2, section, prevSection);
+      
+      console.log('After:', newSections.map(s => s.title));
+      return newSections;
+    });
+  }, [canMoveSection]);
+  /**
+   * Move a section down in the order
+   */
+  const handleMoveDown = useCallback((sectionId: string) => {
+    console.log('Move down clicked for section:', sectionId);
+    
+    setResumeSections(prevSections => {
+      // Make a copy of the array first
+      let newSections = [...prevSections];
+      
+      // Find the current index of the section
+      const sectionIndex = newSections.findIndex(s => s.id === sectionId);
+      console.log('Current section index:', sectionIndex);
+      
+      if (sectionIndex === -1 || sectionIndex >= newSections.length - 1) {
+        console.log('Already at bottom, cannot move down');
+        return prevSections; // Can't move down if it's the last section
+      }
+      
+      const section = newSections[sectionIndex];
+      if (!canMoveSection(section)) {
+        console.log('Section cannot be moved (fixed section)');
+        return prevSections; // Can't move fixed sections
+      }
+      
+      // Get the section below
+      const nextSection = newSections[sectionIndex + 1];
+      
+      console.log('Moving section down:', section.title);
+      console.log('Before:', newSections.map(s => s.title));
+      
+      // Swap the two sections
+      newSections.splice(sectionIndex, 2, nextSection, section);
+      
+      console.log('After:', newSections.map(s => s.title));
+      return newSections;
+    });
+  }, [canMoveSection]);
   /**
    * Delete a section
    */
@@ -103,7 +191,6 @@ export function useSectionManagement(
       }
     }
   }, [resumeSections, sectionHierarchy, activeSection, setResumeSections, setSectionHierarchy]);
-
   /**
    * Add a new summary section if missing
    */
@@ -132,7 +219,6 @@ export function useSectionManagement(
     
     setActiveSection(newSummary.id);
   }, [resumeSections, setResumeSections]);
-
   /**
    * Add a new generic section
    */
@@ -146,7 +232,6 @@ export function useSectionManagement(
     setResumeSections(prev => [...prev, newSection]);
     setActiveSection(newSection.id);
   }, [setResumeSections]);
-
   /**
    * Add a new job role with indented bullet points
    */
@@ -193,7 +278,6 @@ export function useSectionManagement(
     
     setActiveSection(newJobRoleId);
   }, [resumeSections, setResumeSections, setSectionHierarchy]);
-
   /**
    * Check if we should show "Add Job Role" button after this section
    */
@@ -201,7 +285,6 @@ export function useSectionManagement(
     // Show Add Job Role button after Experience section
     return section.type === ResumeSectionType.EXPERIENCE;
   }, []);
-
   /**
    * Handle applying suggested content from the analyzer
    * This function is passed to the AIResumeAnalyzer component as onApplySuggestion
@@ -216,11 +299,13 @@ export function useSectionManagement(
     try {
       console.log(`Applying suggestion - Type: ${sectionType}, DirectRoleId: ${directRoleId || 'none'}`);
       
-      // Function to show success message
+      // Function to show success message safely
       const showSuccess = () => {
         if (setSaveSuccess) {
           setSaveSuccess(true);
-          setTimeout(() => setSaveSuccess && setSaveSuccess(false), 3000);
+          setTimeout(() => {
+            if (setSaveSuccess) setSaveSuccess(false);
+          }, 3000);
         }
       };
       
@@ -338,7 +423,70 @@ export function useSectionManagement(
       console.error('Error applying suggestion:', error);
     }
   }, [resumeSections, handleContentEdit, setResumeSections, setSaveSuccess]);
-
+  /**
+   * Move a child section up within its parent's children
+   */
+  const handleMoveChildUp = useCallback((sectionId: string) => {
+    setResumeSections(prevSections => {
+      // Find the section
+      const section = prevSections.find(s => s.id === sectionId);
+      if (!section || !section.parentId) return prevSections;
+      
+      // Find all sections with the same parent
+      const siblingIds = sectionHierarchy[section.parentId] || [];
+      const currentIndex = siblingIds.indexOf(sectionId);
+      
+      if (currentIndex <= 0) return prevSections;
+      
+      // Get the sibling above
+      const prevSiblingId = siblingIds[currentIndex - 1];
+      
+      // Create a new array of sibling IDs with the order changed
+      const newSiblingIds = [...siblingIds];
+      newSiblingIds[currentIndex] = prevSiblingId;
+      newSiblingIds[currentIndex - 1] = sectionId;
+      
+      // Update the hierarchy with type assertion to fix TypeScript error
+      setSectionHierarchy(prev => ({
+        ...prev,
+        [section.parentId as string]: newSiblingIds
+      }));
+      
+      return prevSections;
+    });
+  }, [sectionHierarchy, setSectionHierarchy]);
+  /**
+   * Move a child section down within its parent's children
+   */
+  const handleMoveChildDown = useCallback((sectionId: string) => {
+    setResumeSections(prevSections => {
+      // Find the section
+      const section = prevSections.find(s => s.id === sectionId);
+      if (!section || !section.parentId) return prevSections;
+      
+      // Find all sections with the same parent
+      const siblingIds = sectionHierarchy[section.parentId] || [];
+      const currentIndex = siblingIds.indexOf(sectionId);
+      
+      if (currentIndex === -1 || currentIndex >= siblingIds.length - 1) return prevSections;
+      
+      // Get the sibling below
+      const nextSiblingId = siblingIds[currentIndex + 1];
+      
+      // Create a new array of sibling IDs with the order changed
+      const newSiblingIds = [...siblingIds];
+      newSiblingIds[currentIndex] = nextSiblingId;
+      newSiblingIds[currentIndex + 1] = sectionId;
+      
+      // Update the hierarchy with type assertion to fix TypeScript error
+      setSectionHierarchy(prev => ({
+        ...prev,
+        [section.parentId as string]: newSiblingIds
+      }));
+      
+      return prevSections;
+    });
+  }, [sectionHierarchy, setSectionHierarchy]);
   return {
     activeSection,
     setActiveSection,
@@ -350,8 +498,12 @@ export function useSectionManagement(
     handleAddJobRole,
     shouldShowAddJobRoleButton,
     handleApplySuggestion,
-    getSectionTypeOrder
+    getSectionTypeOrder,
+    canMoveSection,
+    handleMoveUp,
+    handleMoveDown,
+    handleMoveChildUp,
+    handleMoveChildDown
   };
 }
-
 export default useSectionManagement;
