@@ -9,9 +9,11 @@ interface FetchResumeOptions {
   jobApplicationId?: string;
 }
 
+// Updated to include sectionHierarchy option
 interface SaveResumeOptions {
   resumeId: string;
   sections: ResumeSection[];
+  sectionHierarchy?: Record<string, string[]>;
 }
 
 /**
@@ -203,8 +205,9 @@ export function useResumeApi() {
 
   /**
    * Save resume data
+   * UPDATED: Now accepts sectionHierarchy and passes it to the API
    */
-  const saveResume = useCallback(async ({ resumeId, sections }: SaveResumeOptions) => {
+  const saveResume = useCallback(async ({ resumeId, sections, sectionHierarchy }: SaveResumeOptions) => {
     if (!resumeId) {
       setError('No resume ID available to save changes');
       return false;
@@ -217,8 +220,11 @@ export function useResumeApi() {
       // Convert the resume sections back to HTML
       const combinedHtml = sectionsToHtml(sections);
       
-      // Generate JSON data for better storage
-      const jsonResume = sectionsToJsonResume(sections);
+      // Generate JSON data for better storage, pass sectionHierarchy if available
+      const jsonResume = sectionsToJsonResume(
+        sections, 
+        sectionHierarchy ? { sectionHierarchy } : undefined
+      );
       
       // Create clean JSON string without markdown formatting
       const jsonString = JSON.stringify(jsonResume, null, 2);
@@ -231,7 +237,8 @@ export function useResumeApi() {
           id: resumeId,
           markdownContent: jsonString, // Store JSON string for backward compatibility
           content: combinedHtml, // Keep HTML for display
-          rawJson: jsonResume // Store structured JSON data
+          rawJson: jsonResume, // Store structured JSON data
+          sectionHierarchy // Include section hierarchy explicitly
         }),
       });
       

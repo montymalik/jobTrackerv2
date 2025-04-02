@@ -247,19 +247,31 @@ export function useResumeData(resumeId?: string, jobApplicationId?: string) {
 
   /**
    * Handle saving the resume
+   * - Makes a direct API call to save the current sections
+   * - Handles errors and success states
    */
-  const handleSave = useCallback(async () => {
-    if (!currentResumeId) {
-      setError('No resume ID available to save changes');
-      return;
-    }
-    
-    await saveResume({
-      resumeId: currentResumeId,
-      sections: resumeSections
-    });
-  }, [currentResumeId, resumeSections, saveResume, setError]);
-
+/**
+ * Handle saving the resume
+ */
+const handleSave = useCallback(async () => {
+  if (!currentResumeId) {
+    console.error("Cannot save: No resume ID available");
+    setError('No resume ID available to save changes');
+    return;
+  }
+  
+  console.log("Saving resume with ID:", currentResumeId);
+  console.log("Sections to save:", resumeSections.length);
+  
+  // Use the saveResume function from the useResumeApi hook
+  await saveResume({
+    resumeId: currentResumeId,
+    sections: resumeSections,
+    sectionHierarchy: sectionHierarchy
+  });
+  
+  return true;
+}, [currentResumeId, resumeSections, sectionHierarchy, saveResume, setError]);
   return {
     resumeSections,
     setResumeSections,
