@@ -18,6 +18,8 @@ export interface PdfExportOptions {
   customStyles?: string;
   contentType?: ContentType;
   metadata?: DocumentMetadata;
+  removeSummaryTitle?: boolean;
+  extraCss?: string;
   onSuccess?: (filename: string, metadata?: DocumentMetadata) => void;
   onError?: (error: Error) => void;
   onBeforeRender?: (element: HTMLElement) => void;
