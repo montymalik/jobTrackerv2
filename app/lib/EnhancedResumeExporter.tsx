@@ -37,41 +37,27 @@ export interface EnhancedResumeExportParams {
   resumeSections?: ResumeSection[]; // Optional sections data for better control
 }
 /**
- * Processes resume sections and extracts all content to ensure nothing is missed
- * Fixed to address formatting issues with job roles and contact info
+ * Processes resume sections and respects the original section order
+ * Modified to preserve the input ordering from ResumeEditor
+ */
+/**
+ * Processes resume sections and respects the original section order
+ * Modified to preserve the input ordering from ResumeEditor
+ * Fixed to properly handle job role ordering and parent/child relationships
  */
 const processResumeSections = (sections: ResumeSection[], options: EnhancedResumeExportOptions = {}): string => {
-  // Sort sections in proper order
-  const sectionOrder: Record<string, number> = {
-    'HEADER': 0,
-    'SUMMARY': 1,
-    'EXPERIENCE': 2,
-    'JOB_ROLE': 3,
-    'EDUCATION': 4,
-    'SKILLS': 5,
-    'CERTIFICATIONS': 6,
-    'PROJECTS': 7,
-    'OTHER': 8
-  };
-  
-  // First sort by section type, then keep original order for same types
-  const sortedSections = [...sections].sort((a, b) => {
-    const orderA = sectionOrder[a.type] ?? 999;
-    const orderB = sectionOrder[b.type] ?? 999;
-    
-    if (orderA !== orderB) {
-      return orderA - orderB;
-    }
-    
-    // For same types, preserve original order
-    return sections.indexOf(a) - sections.indexOf(b);
-  });
-  
-  // Map sections to markdown
+  // No internal sorting - use sections in the exact order they're provided
   let markdown = '';
+  let experienceHeaderAdded = false;
   
-  // Process header first - extract name and contact info
-  const header = sortedSections.find(s => s.type === ResumeSectionType.HEADER);
+  console.log("Processing sections in this order:", sections.map(s => ({
+    id: s.id,
+    title: s.title,
+    type: s.type
+  })));
+  
+  // Special handling for header section which should always be processed first
+  const header = sections.find(s => s.type === ResumeSectionType.HEADER);
   if (header) {
     // Extract name from h1
     const nameMatch = header.content.match(/<h1[^>]*>(.*?)<\/h1>/i);
@@ -98,42 +84,69 @@ const processResumeSections = (sections: ResumeSection[], options: EnhancedResum
     }
   }
   
-  // Process summary section - but remove the title if needed
-  const summary = sortedSections.find(s => s.type === ResumeSectionType.SUMMARY);
-  if (summary) {
-    if (options.removeSummaryTitle !== true) {
-      markdown += `## ${summary.title}\n\n`;
-    } else {
-      // Add proper spacing before the summary content when we remove the title
-      markdown += `<!--SUMMARY_START-->\n\n`;
-    }
-    
-    // Extract paragraphs from summary content
-    const paragraphs = extractParagraphs(summary.content);
-    if (paragraphs.length > 0) {
-      paragraphs.forEach(p => {
-        markdown += `${p}\n\n`;
-      });
-    } else {
-      markdown += `${stripHtml(summary.content)}\n\n`;
-    }
+  // Track sections we've already processed
+  const processedSectionIds = new Set<string>();
+  if (header) {
+    processedSectionIds.add(header.id);
   }
   
-  // Process experience section
-  const experience = sortedSections.find(s => s.type === ResumeSectionType.EXPERIENCE);
-  const jobRoles = sortedSections.filter(s => s.type === ResumeSectionType.JOB_ROLE);
-  
-  if (experience || jobRoles.length > 0) {
-    markdown += `## Professional Experience\n\n`;
+  // Process all non-header sections in the exact order they were provided
+  for (const section of sections) {
+    // Skip if we've already processed this section
+    if (processedSectionIds.has(section.id)) {
+      continue;
+    }
     
-    // Process job roles
-    jobRoles.forEach(job => {
+    // Mark as processed
+    processedSectionIds.add(section.id);
+    
+    // Special case for summary section - handle title removal if needed
+    if (section.type === ResumeSectionType.SUMMARY) {
+      if (options.removeSummaryTitle !== true) {
+        markdown += `## ${section.title}\n\n`;
+      } else {
+        // Add proper spacing before the summary content when we remove the title
+        markdown += `<!--SUMMARY_START-->\n\n`;
+      }
+      
+      // Extract paragraphs from summary content
+      const paragraphs = extractParagraphs(section.content);
+      if (paragraphs.length > 0) {
+        paragraphs.forEach(p => {
+          markdown += `${p}\n\n`;
+        });
+      } else {
+        markdown += `${stripHtml(section.content)}\n\n`;
+      }
+      continue;
+    }
+    
+    // Special case for experience section
+    if (section.type === ResumeSectionType.EXPERIENCE) {
+      // Only add the Professional Experience heading if it hasn't been added already
+      if (!experienceHeaderAdded) {
+        markdown += `## Professional Experience\n\n`;
+        experienceHeaderAdded = true;
+      }
+      continue;
+    }
+    
+    // Special case for job roles - handle job titles, company names, and bullet points
+    if (section.type === ResumeSectionType.JOB_ROLE) {
+      // Add Professional Experience heading if it hasn't been added yet
+      if (!experienceHeaderAdded) {
+        markdown += `## Professional Experience\n\n`;
+        experienceHeaderAdded = true;
+      }
+      
+      console.log(`Processing job role: ${section.title} (ID: ${section.id})`);
+      
       // Extract job title, company, and date
-      const jobTitleMatch = job.content.match(/<h3[^>]*>(.*?)<\/h3>/i);
-      let jobTitle = jobTitleMatch ? stripHtml(jobTitleMatch[1]) : job.title;
+      const jobTitleMatch = section.content.match(/<h3[^>]*>(.*?)<\/h3>/i);
+      let jobTitle = jobTitleMatch ? stripHtml(jobTitleMatch[1]) : section.title;
       
       // Extract company and date info
-      const companyMatch = job.content.match(/<p[^>]*>(.*?)<\/p>/i);
+      const companyMatch = section.content.match(/<p[^>]*>(.*?)<\/p>/i);
       let companyText = '';
       let dateRange = '';
       
@@ -149,144 +162,124 @@ const processResumeSections = (sections: ResumeSection[], options: EnhancedResum
       }
       
       // Format job title with right-aligned dates on the same line
-      // Fix: Add proper formatting with job title left-justified and dates right-justified
       markdown += `### ${jobTitle} ${dateRange ? `<span style="float:right">${dateRange}</span>` : ''}\n`;
       markdown += `${companyText}\n\n`;
       
       // Extract bullet points
-      const bullets = extractBulletPoints(job.content);
+      const bullets = extractBulletPoints(section.content);
       bullets.forEach(bullet => {
         markdown += `- ${bullet}\n`;
       });
       
       // Add spacing after job
       markdown += '\n';
-    });
-  }
-  
-  // Process education section
-  const education = sortedSections.find(s => s.type === ResumeSectionType.EDUCATION);
-  if (education) {
-    markdown += `## ${education.title}\n\n`;
+      continue;
+    }
     
-    // Extract education details
-    const paragraphs = extractParagraphs(education.content);
-    if (paragraphs.length > 0) {
-      paragraphs.forEach(p => {
-        markdown += `${p}\n\n`;
-      });
-    } else {
-      // Extract h3 sections if any
-      const educationEntries = education.content.match(/<h3[^>]*>(.*?)<\/h3>[\s\S]*?(?=<h3|$)/gi);
-      if (educationEntries && educationEntries.length > 0) {
-        educationEntries.forEach(entry => {
-          const titleMatch = entry.match(/<h3[^>]*>(.*?)<\/h3>/i);
+    // All other section types - use standard section formatting with title
+    markdown += `## ${section.title}\n\n`;
+    
+    // Handle different content formats based on section type
+    if (section.type === ResumeSectionType.SKILLS) {
+      // Try to extract skill categories (usually in h3 or strong tags)
+      const skillCategories = section.content.match(/<h3[^>]*>(.*?)<\/h3>[\s\S]*?(?=<h3|$)/gi);
+      
+      if (skillCategories && skillCategories.length > 0) {
+        skillCategories.forEach(category => {
+          const titleMatch = category.match(/<h3[^>]*>(.*?)<\/h3>/i);
           if (titleMatch) {
-            markdown += `### ${stripHtml(titleMatch[1])}\n\n`;
+            markdown += `**${stripHtml(titleMatch[1])}:** `;
           }
           
-          const paragraphs = extractParagraphs(entry);
-          paragraphs.forEach(p => {
-            markdown += `${p}\n\n`;
-          });
-        });
-      } else {
-        markdown += `${stripHtml(education.content)}\n\n`;
-      }
-    }
-  }
-  
-  // Process skills section
-  const skills = sortedSections.find(s => s.type === ResumeSectionType.SKILLS);
-  if (skills) {
-    markdown += `## ${skills.title}\n\n`;
-    
-    // Try to extract skill categories (usually in h3 or strong tags)
-    const skillCategories = skills.content.match(/<h3[^>]*>(.*?)<\/h3>[\s\S]*?(?=<h3|$)/gi);
-    
-    if (skillCategories && skillCategories.length > 0) {
-      skillCategories.forEach(category => {
-        const titleMatch = category.match(/<h3[^>]*>(.*?)<\/h3>/i);
-        if (titleMatch) {
-          markdown += `**${stripHtml(titleMatch[1])}:** `;
-        }
-        
-        // Extract skill list
-        const paragraphs = extractParagraphs(category);
-        if (paragraphs.length > 0) {
-          markdown += `${paragraphs[0]}\n\n`;
-        }
-      });
-    } else {
-      // Try to extract skills with strong or b tags
-      const strongMatches = skills.content.match(/(?:<strong[^>]*>|<b[^>]*>)(.*?)(?:<\/strong>|<\/b>)\s*:\s*(.*?)(?=<(?:strong|b|div|p|ul|h))/gi);
-      
-      if (strongMatches && strongMatches.length > 0) {
-        strongMatches.forEach(match => {
-          const categoryMatch = match.match(/(?:<strong[^>]*>|<b[^>]*>)(.*?)(?:<\/strong>|<\/b>)\s*:\s*(.*)/i);
-          if (categoryMatch) {
-            const name = stripHtml(categoryMatch[1]);
-            const skillsText = stripHtml(categoryMatch[2]);
-            markdown += `**${name}:** ${skillsText}\n\n`;
+          // Extract skill list
+          const paragraphs = extractParagraphs(category);
+          if (paragraphs.length > 0) {
+            markdown += `${paragraphs[0]}\n\n`;
           }
         });
       } else {
-        // If no categories, just extract paragraphs
-        const paragraphs = extractParagraphs(skills.content);
+        // Try to extract skills with strong or b tags
+        const strongMatches = section.content.match(/(?:<strong[^>]*>|<b[^>]*>)(.*?)(?:<\/strong>|<\/b>)\s*:\s*(.*?)(?=<(?:strong|b|div|p|ul|h))/gi);
+        
+        if (strongMatches && strongMatches.length > 0) {
+          strongMatches.forEach(match => {
+            const categoryMatch = match.match(/(?:<strong[^>]*>|<b[^>]*>)(.*?)(?:<\/strong>|<\/b>)\s*:\s*(.*)/i);
+            if (categoryMatch) {
+              const name = stripHtml(categoryMatch[1]);
+              const skillsText = stripHtml(categoryMatch[2]);
+              markdown += `**${name}:** ${skillsText}\n\n`;
+            }
+          });
+        } else {
+          // If no categories, just extract paragraphs
+          const paragraphs = extractParagraphs(section.content);
+          if (paragraphs.length > 0) {
+            paragraphs.forEach(p => {
+              markdown += `${p}\n\n`;
+            });
+          } else {
+            markdown += `${stripHtml(section.content)}\n\n`;
+          }
+        }
+      }
+    } else if (section.type === ResumeSectionType.CERTIFICATIONS) {
+      // Extract certification bullets
+      const bullets = extractBulletPoints(section.content);
+      if (bullets.length > 0) {
+        bullets.forEach(bullet => {
+          markdown += `- ${bullet}\n`;
+        });
+        markdown += '\n';
+      } else {
+        // Just extract paragraphs
+        const paragraphs = extractParagraphs(section.content);
         if (paragraphs.length > 0) {
           paragraphs.forEach(p => {
             markdown += `${p}\n\n`;
           });
         } else {
-          markdown += `${stripHtml(skills.content)}\n\n`;
+          markdown += `${stripHtml(section.content)}\n\n`;
         }
       }
-    }
-  }
-  
-  // Process certifications section
-  const certifications = sortedSections.find(s => s.type === ResumeSectionType.CERTIFICATIONS);
-  if (certifications) {
-    markdown += `## ${certifications.title}\n\n`;
-    
-    // Extract certification bullets
-    const bullets = extractBulletPoints(certifications.content);
-    if (bullets.length > 0) {
-      bullets.forEach(bullet => {
-        markdown += `- ${bullet}\n`;
-      });
-      markdown += '\n';
-    } else {
-      // Just extract paragraphs
-      const paragraphs = extractParagraphs(certifications.content);
+    } else if (section.type === ResumeSectionType.EDUCATION) {
+      // Extract education details
+      const paragraphs = extractParagraphs(section.content);
       if (paragraphs.length > 0) {
         paragraphs.forEach(p => {
           markdown += `${p}\n\n`;
         });
       } else {
-        markdown += `${stripHtml(certifications.content)}\n\n`;
+        // Extract h3 sections if any
+        const educationEntries = section.content.match(/<h3[^>]*>(.*?)<\/h3>[\s\S]*?(?=<h3|$)/gi);
+        if (educationEntries && educationEntries.length > 0) {
+          educationEntries.forEach(entry => {
+            const titleMatch = entry.match(/<h3[^>]*>(.*?)<\/h3>/i);
+            if (titleMatch) {
+              markdown += `### ${stripHtml(titleMatch[1])}\n\n`;
+            }
+            
+            const paragraphs = extractParagraphs(entry);
+            paragraphs.forEach(p => {
+              markdown += `${p}\n\n`;
+            });
+          });
+        } else {
+          markdown += `${stripHtml(section.content)}\n\n`;
+        }
+      }
+    } else {
+      // Default handling for other section types (PROJECTS, OTHER, etc.)
+      // Extract section content
+      const paragraphs = extractParagraphs(section.content);
+      if (paragraphs.length > 0) {
+        paragraphs.forEach(p => {
+          markdown += `${p}\n\n`;
+        });
+      } else {
+        markdown += `${stripHtml(section.content)}\n\n`;
       }
     }
   }
-  
-  // Process any remaining sections
-  const otherSections = sortedSections.filter(s => 
-    s.type === ResumeSectionType.PROJECTS || s.type === ResumeSectionType.OTHER
-  );
-  
-  otherSections.forEach(section => {
-    markdown += `## ${section.title}\n\n`;
-    
-    // Extract section content
-    const paragraphs = extractParagraphs(section.content);
-    if (paragraphs.length > 0) {
-      paragraphs.forEach(p => {
-        markdown += `${p}\n\n`;
-      });
-    } else {
-      markdown += `${stripHtml(section.content)}\n\n`;
-    }
-  });
   
   return markdown;
 };
@@ -324,6 +317,7 @@ const extractContactInfo = (html: string): string => {
   
   return '';
 };
+
 /**
  * Extract paragraphs from HTML content
  */
@@ -342,6 +336,7 @@ const extractParagraphs = (html: string): string[] => {
   
   return paragraphs;
 };
+
 /**
  * Extract bullet points from HTML content
  */
@@ -374,6 +369,7 @@ const extractBulletPoints = (html: string): string[] => {
   
   return bullets;
 };
+
 /**
  * Strip HTML tags from a string
  */
@@ -381,6 +377,7 @@ const stripHtml = (html: string): string => {
   if (!html) return '';
   return html.replace(/<\/?[^>]+(>|$)/g, "").trim();
 };
+
 /**
  * Enhanced function to export resume to PDF with better styling and complete content
  * Revised to fix job role formatting and header details
@@ -712,7 +709,6 @@ export const exportEnhancedResumeToPdf = async ({
   
   // Create a custom renderer that handles resume-specific formatting
   // Replace the resumeRenderer function with this updated version that doesn't add a duplicate divider
-
 const resumeRenderer = (content: string, element: HTMLElement) => {
   // Special preprocessing for skill entries
   content = content.replace(/^(\s*[\*-]\s+)\*\*([^:]+):\*\*(.*)$/gm, '$1__SKILL_START__$2__SKILL_MID__$3__SKILL_END__');

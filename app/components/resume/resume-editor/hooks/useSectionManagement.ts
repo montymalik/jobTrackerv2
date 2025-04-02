@@ -423,8 +423,10 @@ export function useSectionManagement(
       console.error('Error applying suggestion:', error);
     }
   }, [resumeSections, handleContentEdit, setResumeSections, setSaveSuccess]);
+  
   /**
    * Move a child section up within its parent's children
+   * Updated to also modify the main resumeSections array
    */
   const handleMoveChildUp = useCallback((sectionId: string) => {
     setResumeSections(prevSections => {
@@ -452,11 +454,41 @@ export function useSectionManagement(
         [section.parentId as string]: newSiblingIds
       }));
       
+      // NEW: Also update the main resumeSections array to match the hierarchy
+      const newSections = [...prevSections];
+      const childSection = newSections.find(s => s.id === sectionId);
+      const aboveChildSection = newSections.find(s => s.id === prevSiblingId);
+      
+      if (childSection && aboveChildSection) {
+        // Get the indexes in the main array
+        const childSectionIndex = newSections.indexOf(childSection);
+        const aboveChildSectionIndex = newSections.indexOf(aboveChildSection);
+        
+        console.log(`Moving section ${childSection.title} above ${aboveChildSection.title}`);
+        console.log('Before move in main array:', newSections.map(s => s.title));
+        
+        // Swap positions in the main resumeSections array
+        const temp = newSections[childSectionIndex];
+        newSections[childSectionIndex] = newSections[aboveChildSectionIndex];
+        newSections[aboveChildSectionIndex] = temp;
+        
+        console.log('After move in main array:', newSections.map(s => s.title));
+        
+        // Return the updated sections
+        return newSections;
+      }
+      
+      // If we couldn't update the main array, return the original sections
       return prevSections;
     });
-  }, [sectionHierarchy, setSectionHierarchy]);
+    
+    // Mark as needing to save
+    if (setSaveSuccess) setSaveSuccess(false);
+  }, [sectionHierarchy, setSectionHierarchy, setSaveSuccess]);
+  
   /**
    * Move a child section down within its parent's children
+   * Updated to also modify the main resumeSections array
    */
   const handleMoveChildDown = useCallback((sectionId: string) => {
     setResumeSections(prevSections => {
@@ -484,9 +516,38 @@ export function useSectionManagement(
         [section.parentId as string]: newSiblingIds
       }));
       
+      // NEW: Also update the main resumeSections array to match the hierarchy
+      const newSections = [...prevSections];
+      const childSection = newSections.find(s => s.id === sectionId);
+      const belowChildSection = newSections.find(s => s.id === nextSiblingId);
+      
+      if (childSection && belowChildSection) {
+        // Get the indexes in the main array
+        const childSectionIndex = newSections.indexOf(childSection);
+        const belowChildSectionIndex = newSections.indexOf(belowChildSection);
+        
+        console.log(`Moving section ${childSection.title} below ${belowChildSection.title}`);
+        console.log('Before move in main array:', newSections.map(s => s.title));
+        
+        // Swap positions in the main resumeSections array
+        const temp = newSections[childSectionIndex];
+        newSections[childSectionIndex] = newSections[belowChildSectionIndex];
+        newSections[belowChildSectionIndex] = temp;
+        
+        console.log('After move in main array:', newSections.map(s => s.title));
+        
+        // Return the updated sections
+        return newSections;
+      }
+      
+      // If we couldn't update the main array, return the original sections
       return prevSections;
     });
-  }, [sectionHierarchy, setSectionHierarchy]);
+    
+    // Mark as needing to save
+    if (setSaveSuccess) setSaveSuccess(false);
+  }, [sectionHierarchy, setSectionHierarchy, setSaveSuccess]);
+
   return {
     activeSection,
     setActiveSection,

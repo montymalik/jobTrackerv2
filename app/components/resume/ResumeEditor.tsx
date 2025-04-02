@@ -1,18 +1,15 @@
 // app/components/resume/ResumeEditor.tsx (updated)
 import React, { useState, useMemo } from 'react';
 import { ResumeSection, ResumeSectionType } from '@/app/lib/types';
-
 // Import updated components
 import { SectionList } from './resume-editor/SectionList';
 import { SectionEditor } from './resume-editor/SectionEditor';
 import { ErrorBoundary } from './resume-editor/ErrorBoundary';
 import AIResumeAnalyzer from './AIResumeAnalyzer';
-
 // Import custom hooks
 import { useResumeData } from './resume-editor/hooks/useResumeData';
 import { useSectionManagement } from './resume-editor/hooks/useSectionManagement';
 import { usePdfExport } from './resume-editor/hooks/usePdfExport';
-
 // Import the enhanced PDF exporter instead of the old one
 import { EnhancedResumeExporter } from '@/app/lib/EnhancedResumeExporter';
 import { formatResumeForExport } from '@/app/lib/formatResumeForExport';
@@ -109,6 +106,87 @@ const ResumeEditor: React.FC<ResumeEditorProps> = ({ resumeId, jobApplicationId 
     return result;
   }, [resumeSections, sectionHierarchy]);
   
+  // Create a fully ordered section list with proper parent-child relationships
+  // Replace your orderedCompleteSections useMemo with this enhanced version
+
+const orderedCompleteSections = useMemo(() => {
+  // Start with the top-level sections in the proper order
+  const result = [...sortedTopLevelSections];
+  const finalResult = [];
+  
+  // Process each top-level section
+  for (let i = 0; i < result.length; i++) {
+    const parentSection = result[i];
+    
+    // Add the parent section
+    finalResult.push(parentSection);
+    
+    // Special handling for Experience section and Job Roles
+    if (parentSection.type === ResumeSectionType.EXPERIENCE) {
+      // Get child IDs from the hierarchy
+      const childIds = sectionHierarchy[parentSection.id] || [];
+      
+      // Find job roles that are children of this experience section
+      const jobRoles = resumeSections.filter(s => 
+        s.type === ResumeSectionType.JOB_ROLE && 
+        (childIds.includes(s.id) || s.parentId === parentSection.id)
+      );
+      
+      // Add these job roles in their UI order
+      if (jobRoles.length > 0) {
+        // Sort job roles based on their display order (if they have positions in the UI)
+        // This preserves the order from the UI
+        const sortedJobRoles = jobRoles.sort((a, b) => {
+          // If we have explicit positions in the UI (from the move up/down operations)
+          // Get the index in the original resumeSections array to maintain the order
+          const indexA = resumeSections.findIndex(s => s.id === a.id);
+          const indexB = resumeSections.findIndex(s => s.id === b.id);
+          return indexA - indexB;
+        });
+        
+        console.log("Adding job roles in order:", sortedJobRoles.map(j => j.title));
+        finalResult.push(...sortedJobRoles);
+      }
+    } else {
+      // Handle other section types with children
+      const childIds = sectionHierarchy[parentSection.id] || [];
+      
+      if (childIds.length > 0) {
+        // Get all direct children for this section
+        const children = resumeSections.filter(s => 
+          childIds.includes(s.id) || s.parentId === parentSection.id
+        );
+        
+        // Sort them to maintain the order from UI
+        const sortedChildren = children.sort((a, b) => {
+          const indexA = resumeSections.findIndex(s => s.id === a.id);
+          const indexB = resumeSections.findIndex(s => s.id === b.id);
+          return indexA - indexB;
+        });
+        
+        // Add them to our result array
+        finalResult.push(...sortedChildren);
+      }
+    }
+  }
+  
+  // Add any orphaned sections (shouldn't be many, but just to be safe)
+  const processedIds = finalResult.map(s => s.id);
+  const orphanedSections = resumeSections.filter(s => !processedIds.includes(s.id));
+  
+  if (orphanedSections.length > 0) {
+    console.log("Found orphaned sections:", orphanedSections.map(s => s.title));
+    finalResult.push(...orphanedSections);
+  }
+  
+  console.log("Final ordered sections:", finalResult.map(s => ({
+    id: s.id,
+    title: s.title,
+    type: s.type
+  })));
+  
+  return finalResult;
+}, [sortedTopLevelSections, sectionHierarchy, resumeSections]);
   // No data state
   if (!isLoading && resumeSections.length === 0) {
     return (
@@ -176,9 +254,9 @@ const ResumeEditor: React.FC<ResumeEditorProps> = ({ resumeId, jobApplicationId 
                 {isSaving ? "Saving..." : "Save Resume"}
               </button>
               
-              {/* Replace the old PDF export button with our enhanced version */}
+              {/* Updated to use the properly ordered sections list */}
               <EnhancedResumeExporter
-                resumeSections={resumeSections}
+                resumeSections={orderedCompleteSections}
                 contentFallback={pdfExportContent}
                 contentType="markdown"
                 filename={`Resume_${new Date().toISOString().split('T')[0]}.pdf`}
