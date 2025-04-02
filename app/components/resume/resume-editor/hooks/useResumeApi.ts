@@ -207,58 +207,58 @@ export function useResumeApi() {
    * Save resume data
    * UPDATED: Now accepts sectionHierarchy and passes it to the API
    */
-  const saveResume = useCallback(async ({ resumeId, sections, sectionHierarchy }: SaveResumeOptions) => {
-    if (!resumeId) {
-      setError('No resume ID available to save changes');
-      return false;
+/**
+ * Save resume data
+ */
+const saveResume = useCallback(async ({ resumeId, sections, sectionHierarchy }: SaveResumeOptions) => {
+  if (!resumeId) {
+    setError('No resume ID available to save changes');
+    return false;
+  }
+  
+  setIsSaving(true);
+  setError(null);
+  
+  try {
+    // Convert the resume sections back to HTML
+    const combinedHtml = sectionsToHtml(sections);
+    
+    // Generate JSON data for better storage
+    // Note: only passing sections as that's what the function expects
+    const jsonResume = sectionsToJsonResume(sections);
+    
+    // Create clean JSON string without markdown formatting
+    const jsonString = JSON.stringify(jsonResume, null, 2);
+    
+    console.log(`Saving resume changes to resume ID: ${resumeId}`);
+    const response = await fetch(`/api/resume/update`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        id: resumeId,
+        markdownContent: jsonString, // Store JSON string for backward compatibility
+        content: combinedHtml, // Keep HTML for display
+        rawJson: jsonResume, // Store structured JSON data
+        sectionHierarchy: sectionHierarchy // Include section hierarchy separately
+      }),
+    });
+    
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(`Failed to update resume: ${errorText}`);
     }
     
-    setIsSaving(true);
-    setError(null);
-    
-    try {
-      // Convert the resume sections back to HTML
-      const combinedHtml = sectionsToHtml(sections);
-      
-      // Generate JSON data for better storage, pass sectionHierarchy if available
-      const jsonResume = sectionsToJsonResume(
-        sections, 
-        sectionHierarchy ? { sectionHierarchy } : undefined
-      );
-      
-      // Create clean JSON string without markdown formatting
-      const jsonString = JSON.stringify(jsonResume, null, 2);
-      
-      console.log(`Saving resume changes to resume ID: ${resumeId}`);
-      const response = await fetch(`/api/resume/update`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          id: resumeId,
-          markdownContent: jsonString, // Store JSON string for backward compatibility
-          content: combinedHtml, // Keep HTML for display
-          rawJson: jsonResume, // Store structured JSON data
-          sectionHierarchy // Include section hierarchy explicitly
-        }),
-      });
-      
-      if (!response.ok) {
-        const errorText = await response.text();
-        throw new Error(`Failed to update resume: ${errorText}`);
-      }
-      
-      setSaveSuccess(true);
-      setTimeout(() => setSaveSuccess(false), 3000);
-      return true;
-    } catch (error) {
-      console.error('Error saving resume:', error);
-      setError(`Failed to save resume: ${error instanceof Error ? error.message : "Unknown error"}`);
-      return false;
-    } finally {
-      setIsSaving(false);
-    }
-  }, []);
-
+    setSaveSuccess(true);
+    setTimeout(() => setSaveSuccess(false), 3000);
+    return true;
+  } catch (error) {
+    console.error('Error saving resume:', error);
+    setError(`Failed to save resume: ${error instanceof Error ? error.message : "Unknown error"}`);
+    return false;
+  } finally {
+    setIsSaving(false);
+  }
+}, []);
   return {
     fetchResumeData,
     saveResume,
