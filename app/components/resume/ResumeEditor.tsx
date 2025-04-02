@@ -1,25 +1,33 @@
-// app/components/resume/ResumeEditor.tsx
+// app/components/resume/ResumeEditor.tsx (updated)
 import React, { useState, useMemo } from 'react';
-import { ResumeExportButton } from '@/app/lib/ResumeExporter';
 import { ResumeSection, ResumeSectionType } from '@/app/lib/types';
-import AIResumeAnalyzer from './AIResumeAnalyzer';
-// Import refactored components
+
+// Import updated components
 import { SectionList } from './resume-editor/SectionList';
 import { SectionEditor } from './resume-editor/SectionEditor';
 import { ErrorBoundary } from './resume-editor/ErrorBoundary';
+import AIResumeAnalyzer from './AIResumeAnalyzer';
+
 // Import custom hooks
 import { useResumeData } from './resume-editor/hooks/useResumeData';
 import { useSectionManagement } from './resume-editor/hooks/useSectionManagement';
 import { usePdfExport } from './resume-editor/hooks/usePdfExport';
+
+// Import the enhanced PDF exporter instead of the old one
+import { EnhancedResumeExporter } from '@/app/lib/EnhancedResumeExporter';
+import { formatResumeForExport } from '@/app/lib/formatResumeForExport';
+
 interface ResumeEditorProps {
   resumeId?: string;
   jobApplicationId?: string;
   onSave?: (sections: ResumeSection[]) => Promise<void>;
 }
+
 const ResumeEditor: React.FC<ResumeEditorProps> = ({ resumeId, jobApplicationId }) => {
   // UI state
   const [showAnalyzer, setShowAnalyzer] = useState(false);
   const [showTemplatePicker, setShowTemplatePicker] = useState(false);
+  
   // Get resume data and methods from custom hooks
   const {
     resumeSections,
@@ -36,6 +44,7 @@ const ResumeEditor: React.FC<ResumeEditorProps> = ({ resumeId, jobApplicationId 
     setSectionHierarchy,
     handleSave
   } = useResumeData(resumeId, jobApplicationId);
+  
   const {
     activeSection,
     setActiveSection,
@@ -46,23 +55,28 @@ const ResumeEditor: React.FC<ResumeEditorProps> = ({ resumeId, jobApplicationId 
     handleAddSection,
     handleAddJobRole,
     shouldShowAddJobRoleButton,
-    handleApplySuggestion, // Make sure this is included
+    handleApplySuggestion,
     getSectionTypeOrder,
     canMoveSection,
     handleMoveUp,
     handleMoveDown,
-    handleMoveChildUp, // Add this
-    handleMoveChildDown // Add this
+    handleMoveChildUp,
+    handleMoveChildDown
   } = useSectionManagement(
     resumeSections, 
     setResumeSections, 
     sectionHierarchy, 
     setSectionHierarchy,
-    setSaveSuccess // Pass the setSaveSuccess function to the hook
+    setSaveSuccess
   );
+  
+  // We'll still use the existing hook for backward compatibility,
+  // but we'll add our new export format logic 
   const { pdfExportContent } = usePdfExport(resumeSections, getSectionTypeOrder);
+  
   // Toggle analyzer visibility
   const toggleAnalyzer = () => setShowAnalyzer(prev => !prev);
+  
   // Memoize expensive calculations
   const sortedTopLevelSections = useMemo(() => {
     // Filter out only top-level sections
@@ -94,6 +108,7 @@ const ResumeEditor: React.FC<ResumeEditorProps> = ({ resumeId, jobApplicationId 
     console.log('Sorted sections:', result.map(s => s.title));
     return result;
   }, [resumeSections, sectionHierarchy]);
+  
   // No data state
   if (!isLoading && resumeSections.length === 0) {
     return (
@@ -120,6 +135,7 @@ const ResumeEditor: React.FC<ResumeEditorProps> = ({ resumeId, jobApplicationId 
       </div>
     );
   }
+  
   return (
     <ErrorBoundary>
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -159,8 +175,11 @@ const ResumeEditor: React.FC<ResumeEditorProps> = ({ resumeId, jobApplicationId 
               >
                 {isSaving ? "Saving..." : "Save Resume"}
               </button>
-              <ResumeExportButton
-                content={pdfExportContent}
+              
+              {/* Replace the old PDF export button with our enhanced version */}
+              <EnhancedResumeExporter
+                resumeSections={resumeSections}
+                contentFallback={pdfExportContent}
                 contentType="markdown"
                 filename={`Resume_${new Date().toISOString().split('T')[0]}.pdf`}
                 metadata={{ id: currentResumeId ?? undefined }}
@@ -178,7 +197,12 @@ const ResumeEditor: React.FC<ResumeEditorProps> = ({ resumeId, jobApplicationId 
                   body: '#000000',
                   bullet: '#000000'
                 }}
+                lineSpacing={1.3}
+                sectionSpacing={16}
+                includeAllSections={true}
+                removeTitlesOnly={[]} // Keep all section titles
                 isDisabled={resumeSections.length === 0}
+                companyNameBeforeTitle={false} // Set to false to ensure job titles come first
                 onSuccess={() => {
                   setSaveSuccess(true);
                   setTimeout(() => setSaveSuccess(false), 3000);
@@ -189,6 +213,20 @@ const ResumeEditor: React.FC<ResumeEditorProps> = ({ resumeId, jobApplicationId 
                 }}
               />
             </div>
+          </div>
+          
+          {/* Status Messages - Modified to show both save and export success */}
+          <div className="mt-6">
+            {saveSuccess && (
+              <div className="p-2 bg-green-900/20 text-green-400 rounded">
+                {isSaving ? "Resume saved successfully!" : "Action completed successfully!"}
+              </div>
+            )}
+            {error && (
+              <div className="p-2 bg-red-900/20 text-red-400 rounded">
+                {error}
+              </div>
+            )}
           </div>
           
           {/* Resume Sections List */}
@@ -213,20 +251,6 @@ const ResumeEditor: React.FC<ResumeEditorProps> = ({ resumeId, jobApplicationId 
             shouldShowAddJobRoleButton={shouldShowAddJobRoleButton}
             canMoveSection={canMoveSection}
           />
-          
-          {/* Status Messages */}
-          <div className="mt-6">
-            {saveSuccess && (
-              <div className="p-2 bg-green-900/20 text-green-400 rounded">
-                {isSaving ? "Resume saved successfully!" : "Action completed successfully!"}
-              </div>
-            )}
-            {error && (
-              <div className="p-2 bg-red-900/20 text-red-400 rounded">
-                {error}
-              </div>
-            )}
-          </div>
         </div>
         
         {/* Right Column (1/3): Either Section Editor or AI Resume Analyzer */}
@@ -254,4 +278,5 @@ const ResumeEditor: React.FC<ResumeEditorProps> = ({ resumeId, jobApplicationId 
     </ErrorBoundary>
   );
 };
+
 export default ResumeEditor;
