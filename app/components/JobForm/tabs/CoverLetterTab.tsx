@@ -18,6 +18,8 @@ interface CoverLetter {
 interface CoverLetterTabProps {
   formState: FormState;
   jobId?: string;
+  selectedCoverLetter: CoverLetter | null;
+  onCoverLetterGenerated: (coverLetterId: string | null) => void;
 }
 
 const CoverLetterTab: React.FC<CoverLetterTabProps> = ({ formState, jobId }) => {
