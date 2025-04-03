@@ -27,7 +27,8 @@ model JobApplication {
   contactInfo          Json?
   hasBeenContacted     Boolean           @default(false)
   files                JobFile[]
-  resumes              GeneratedResume[]  // Add relation to generated resumes
+  resumes              GeneratedResume[]  // Relation to generated resumes
+  coverLetters         CoverLetter[]      // Add relation to cover letters
   keySkills            String?
   notes                String?
   createdAt            DateTime           @default(now())
@@ -60,7 +61,7 @@ model BaseResume {
   updatedAt   DateTime  @updatedAt
 }
 
-// New model to store generated resumes
+// Model to store generated resumes
 model GeneratedResume {
   id               String         @id @default(uuid())
   markdownContent  String         // Markdown version of the resume
