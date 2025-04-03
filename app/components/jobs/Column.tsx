@@ -9,6 +9,7 @@ interface ColumnProps {
   jobs: JobApplication[];
   onJobClick: (job: JobApplication) => void;
   onDropJob: (job: JobApplication, status: ApplicationStatus) => void;
+  onDeleteJob?: (jobId: string) => void; // New prop for delete handler
 }
 
 export function Column({
@@ -17,6 +18,7 @@ export function Column({
   jobs,
   onJobClick,
   onDropJob,
+  onDeleteJob,
 }: ColumnProps) {
   const dropRef = useRef<HTMLDivElement | null>(null);
 
@@ -54,11 +56,11 @@ export function Column({
             key={job.id}
             job={job}
             onClick={onJobClick}
-            columnStatus={status} // Pass column status to JobCard
+            columnStatus={status}
+            onDelete={onDeleteJob} // Pass the delete handler
           />
         ))}
       </div>
     </div>
   );
 }
-

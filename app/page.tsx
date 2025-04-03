@@ -85,6 +85,33 @@ function HomePage() {
     }
   };
 
+  const handleDeleteJob = async (jobId: string) => {
+    try {
+      setError(null);
+      
+      // Optimistic UI update - remove the job from state immediately
+      const jobToDelete = jobs.find(job => job.id === jobId);
+      setJobs(jobs.filter(job => job.id !== jobId));
+      
+      // Send delete request to the API
+      const response = await fetch(`/api/jobs/${jobId}`, {
+        method: "DELETE",
+      });
+      
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(errorText || `Server responded with status ${response.status}`);
+      }
+      
+      // No need to refetch as we've already updated the UI
+    } catch (error) {
+      // Revert the optimistic update if the delete fails
+      await fetchJobs();
+      setError(error instanceof Error ? error.message : "Failed to delete job");
+      console.error("Error deleting job:", error);
+    }
+  };
+
   const handleJobClick = (job: JobApplication) => {
     setSelectedJob(job);
     setIsModalOpen(true);
@@ -189,6 +216,7 @@ function HomePage() {
             jobs={jobs.filter((job) => job.status === "TO_APPLY")}
             onJobClick={handleJobClick}
             onDropJob={handleDropJob}
+            onDeleteJob={handleDeleteJob}
           />
           <Column
             title="Applied"
