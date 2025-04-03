@@ -3,6 +3,18 @@ import { FormState } from "../types";
 // Remove direct import of html2pdf
 // import html2pdf from 'html2pdf.js';
 
+interface CoverLetter {
+  id: string;
+  content: string;
+  version: number;
+  jobApplicationId: string;
+  isPrimary: boolean;
+  fileName: string | null;
+  filePath: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
 interface CoverLetterTabProps {
   formState: FormState;
   jobId?: string;
@@ -12,6 +24,12 @@ const CoverLetterTab: React.FC<CoverLetterTabProps> = ({ formState, jobId }) => 
   const [isGenerating, setIsGenerating] = useState(false);
   const [coverLetter, setCoverLetter] = useState("");
   const [error, setError] = useState("");
+  const [successMessage, setSuccessMessage] = useState("");
+  const [savedCoverLetters, setSavedCoverLetters] = useState<CoverLetter[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+  const [currentCoverLetterId, setCurrentCoverLetterId] = useState<string | null>(null);
+  const [showSavedCoverLetters, setShowSavedCoverLetters] = useState(false);
   const textAreaRef = useRef<HTMLTextAreaElement>(null);
   const pdfContainerRef = useRef<HTMLDivElement>(null);
   
@@ -23,6 +41,48 @@ const CoverLetterTab: React.FC<CoverLetterTabProps> = ({ formState, jobId }) => 
     setIsBrowser(true);
   }, []);
 
+  // Fetch saved cover letters when the jobId changes
+  useEffect(() => {
+    if (jobId) {
+      fetchSavedCoverLetters();
+    }
+  }, [jobId]);
+
+  // Clear success message after a delay
+  useEffect(() => {
+    if (successMessage) {
+      const timer = setTimeout(() => {
+        setSuccessMessage("");
+      }, 3000);
+      return () => clearTimeout(timer);
+    }
+  }, [successMessage]);
+
+  // Fetch saved cover letters from the server
+  const fetchSavedCoverLetters = async () => {
+    if (!jobId) return;
+    
+    setIsLoading(true);
+    setError("");
+    
+    try {
+      const response = await fetch(`/api/cover-letter/get-for-job?jobId=${jobId}`);
+      
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`Failed to fetch cover letters: ${errorText}`);
+      }
+      
+      const data = await response.json();
+      setSavedCoverLetters(data);
+    } catch (error) {
+      console.error("Error fetching cover letters:", error);
+      setError(`Failed to fetch cover letters: ${error instanceof Error ? error.message : "Unknown error"}`);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   const generateCoverLetter = async () => {
     if (!formState.companyName || !formState.jobTitle) {
       setError("Please fill in the company name and job title in the Details tab before generating a cover letter.");
@@ -30,6 +90,8 @@ const CoverLetterTab: React.FC<CoverLetterTabProps> = ({ formState, jobId }) => 
     }
     setIsGenerating(true);
     setError("");
+    setSuccessMessage("");
+    setCurrentCoverLetterId(null);
     
     try {
       // Get resume data for cover letter generation
@@ -80,6 +142,75 @@ const CoverLetterTab: React.FC<CoverLetterTabProps> = ({ formState, jobId }) => 
     } finally {
       setIsGenerating(false);
     }
+  };
+
+  // Save the current cover letter to the database
+  const saveCoverLetter = async () => {
+    if (!coverLetter || !jobId) {
+      setError("No cover letter content or job ID available to save");
+      return;
+    }
+    
+    setIsSaving(true);
+    setError("");
+    setSuccessMessage("");
+    
+    try {
+      if (currentCoverLetterId) {
+        // Update existing cover letter
+        const response = await fetch(`/api/cover-letter/update`, {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            id: currentCoverLetterId,
+            content: coverLetter
+          }),
+        });
+        
+        if (!response.ok) {
+          const errorText = await response.text();
+          throw new Error(`Failed to update cover letter: ${errorText}`);
+        }
+        
+        setSuccessMessage("Cover letter updated successfully!");
+      } else {
+        // Create new cover letter
+        const response = await fetch("/api/cover-letter/save", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            jobApplicationId: jobId,
+            content: coverLetter,
+            isPrimary: savedCoverLetters.length === 0 // Make primary if it's the first one
+          }),
+        });
+        
+        if (!response.ok) {
+          const errorText = await response.text();
+          throw new Error(`Failed to save cover letter: ${errorText}`);
+        }
+        
+        const newCoverLetter = await response.json();
+        setCurrentCoverLetterId(newCoverLetter.id);
+        setSuccessMessage("Cover letter saved successfully!");
+      }
+      
+      // Refresh the list of saved cover letters
+      fetchSavedCoverLetters();
+    } catch (error) {
+      console.error("Error saving cover letter:", error);
+      setError(`Failed to save cover letter: ${error instanceof Error ? error.message : "Unknown error"}`);
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  // Load a saved cover letter into the editor
+  const loadCoverLetter = (coverLetterData: CoverLetter) => {
+    setCoverLetter(coverLetterData.content);
+    setCurrentCoverLetterId(coverLetterData.id);
+    setSuccessMessage(`Loaded cover letter "${coverLetterData.fileName || `Version ${coverLetterData.version}`}"`);
+    setShowSavedCoverLetters(false);
   };
 
   const copyToClipboard = () => {
@@ -158,10 +289,13 @@ const CoverLetterTab: React.FC<CoverLetterTabProps> = ({ formState, jobId }) => 
       
       document.body.appendChild(element);
       
+      // Create filename
+      const filename = `Cover_Letter_${formState.companyName.replace(/\s+/g, '_')}.pdf`;
+      
       // Fix: Explicitly define orientation as 'portrait' to match the type declaration
       const opt = {
         margin: 1,
-        filename: `Cover_Letter_${formState.companyName.replace(/\s+/g, '_')}.pdf`,
+        filename: filename,
         image: { 
           type: 'jpeg', 
           quality: 1 
@@ -184,8 +318,29 @@ const CoverLetterTab: React.FC<CoverLetterTabProps> = ({ formState, jobId }) => 
         .set(opt)
         .from(element)
         .save()
-        .then(() => {
+        .then(async () => {
           document.body.removeChild(element);
+          
+          // Update filename in database if cover letter is saved
+          if (currentCoverLetterId) {
+            try {
+              const response = await fetch(`/api/cover-letter/update-filename`, {
+                method: "PUT",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                  id: currentCoverLetterId,
+                  fileName: filename
+                }),
+              });
+              
+              if (response.ok) {
+                // Refresh the list of saved cover letters
+                fetchSavedCoverLetters();
+              }
+            } catch (error) {
+              console.error("Error updating filename:", error);
+            }
+          }
         })
         .catch(err => {
           console.error("PDF generation error:", err);
@@ -228,8 +383,43 @@ const CoverLetterTab: React.FC<CoverLetterTabProps> = ({ formState, jobId }) => 
             )}
           </button>
           
+          {jobId && savedCoverLetters.length > 0 && (
+            <button
+              type="button"
+              onClick={() => setShowSavedCoverLetters(!showSavedCoverLetters)}
+              className="px-4 py-2 bg-purple-600 text-white rounded-md hover:bg-purple-700 flex items-center justify-center min-w-32"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-1" viewBox="0 0 20 20" fill="currentColor">
+                <path fillRule="evenodd" d="M4 4a2 2 0 012-2h4.586A2 2 0 0112 2.586L15.414 6A2 2 0 0116 7.414V16a2 2 0 01-2 2H6a2 2 0 01-2-2V4zm2 6a1 1 0 011-1h6a1 1 0 110 2H7a1 1 0 01-1-1zm1 3a1 1 0 100 2h6a1 1 0 100-2H7z" clipRule="evenodd" />
+              </svg>
+              {showSavedCoverLetters ? "Hide Saved Letters" : "Show Saved Letters"}
+            </button>
+          )}
+          
           {coverLetter && (
             <>
+              {jobId && (
+                <button
+                  type="button"
+                  onClick={saveCoverLetter}
+                  disabled={isSaving}
+                  className="px-4 py-2 bg-teal-600 text-white rounded-md hover:bg-teal-700 disabled:opacity-70 flex items-center justify-center min-w-32"
+                >
+                  {isSaving ? (
+                    <>
+                      <span className="spinner mr-2"></span>
+                      Saving...
+                    </>
+                  ) : (
+                    <>
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-1" viewBox="0 0 20 20" fill="currentColor">
+                        <path d="M7.707 10.293a1 1 0 10-1.414 1.414l3 3a1 1 0 001.414 0l3-3a1 1 0 00-1.414-1.414L11 11.586V6h5a2 2 0 012 2v7a2 2 0 01-2 2H4a2 2 0 01-2-2V8a2 2 0 012-2h5v5.586l-1.293-1.293z" />
+                      </svg>
+                      {currentCoverLetterId ? "Update Letter" : "Save Letter"}
+                    </>
+                  )}
+                </button>
+              )}
               <button
                 type="button"
                 onClick={copyToClipboard}
@@ -259,6 +449,152 @@ const CoverLetterTab: React.FC<CoverLetterTabProps> = ({ formState, jobId }) => 
       {error && (
         <div className="p-4 bg-red-100 border border-red-400 text-red-700 rounded-md mb-4">
           {error}
+        </div>
+      )}
+      
+      {successMessage && (
+        <div className="p-4 bg-green-100 border border-green-400 text-green-700 rounded-md mb-4">
+          {successMessage}
+        </div>
+      )}
+      
+      {/* Dropdown panel for saved cover letters */}
+      {showSavedCoverLetters && (
+        <div className="bg-white dark:bg-gray-800 rounded-md border dark:border-gray-700 p-4 mb-4">
+          <h4 className="text-lg font-medium text-gray-800 dark:text-gray-200 mb-3">
+            Saved Cover Letters
+          </h4>
+          
+          {isLoading ? (
+            <div className="flex items-center justify-center py-4">
+              <div className="spinner mr-3"></div>
+              <span>Loading saved cover letters...</span>
+            </div>
+          ) : savedCoverLetters.length === 0 ? (
+            <p className="text-gray-600 dark:text-gray-400 py-2">No saved cover letters found.</p>
+          ) : (
+            <div className="max-h-60 overflow-y-auto">
+              <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+                <thead className="bg-gray-50 dark:bg-gray-900">
+                  <tr>
+                    <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                      Created
+                    </th>
+                    <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                      Status
+                    </th>
+                    <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                      PDF
+                    </th>
+                    <th className="px-4 py-2 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                      Actions
+                    </th>
+                  </tr>
+                </thead>
+                <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
+                  {savedCoverLetters.map((letter) => (
+                    <tr key={letter.id} className={`hover:bg-gray-50 dark:hover:bg-gray-700 ${letter.id === currentCoverLetterId ? 'bg-blue-50 dark:bg-blue-900/20' : ''}`}>
+                      <td className="px-4 py-2 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
+                        {new Date(letter.createdAt).toLocaleDateString()} {new Date(letter.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                      </td>
+                      <td className="px-4 py-2 whitespace-nowrap">
+                        {letter.isPrimary ? (
+                          <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200">
+                            Primary
+                          </span>
+                        ) : (
+                          <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300">
+                            Secondary
+                          </span>
+                        )}
+                      </td>
+                      <td className="px-4 py-2 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
+                        {letter.fileName ? (
+                          <span className="text-blue-600 dark:text-blue-400">
+                            {letter.fileName}
+                          </span>
+                        ) : (
+                          <span className="text-gray-400 dark:text-gray-500">
+                            No PDF
+                          </span>
+                        )}
+                      </td>
+                      <td className="px-4 py-2 whitespace-nowrap text-right text-sm font-medium">
+                        <button
+                          type="button"
+                          onClick={() => loadCoverLetter(letter)}
+                          className="text-indigo-600 hover:text-indigo-900 dark:text-indigo-400 dark:hover:text-indigo-300 mr-3"
+                        >
+                          Load
+                        </button>
+                        {!letter.isPrimary && (
+                          <button
+                            type="button"
+                            onClick={async () => {
+                              try {
+                                const response = await fetch('/api/cover-letter/set-primary', {
+                                  method: 'POST',
+                                  headers: { "Content-Type": "application/json" },
+                                  body: JSON.stringify({ coverLetterId: letter.id }),
+                                });
+                                
+                                if (response.ok) {
+                                  fetchSavedCoverLetters();
+                                  setSuccessMessage("Primary cover letter updated");
+                                } else {
+                                  setError("Failed to set primary cover letter");
+                                }
+                              } catch (err) {
+                                console.error('Error setting primary cover letter:', err);
+                                setError("Failed to set primary cover letter");
+                              }
+                            }}
+                            className="text-blue-600 hover:text-blue-900 dark:text-blue-400 dark:hover:text-blue-300 mr-3"
+                          >
+                            Set Primary
+                          </button>
+                        )}
+                        <button
+                          type="button"
+                          onClick={async () => {
+                            if (window.confirm("Are you sure you want to delete this cover letter?")) {
+                              try {
+                                const response = await fetch(`/api/cover-letter/delete`, {
+                                  method: "DELETE",
+                                  headers: { "Content-Type": "application/json" },
+                                  body: JSON.stringify({ id: letter.id }),
+                                });
+                                
+                                if (response.ok) {
+                                  fetchSavedCoverLetters();
+                                  
+                                  // If we're currently viewing this cover letter, clear it
+                                  if (currentCoverLetterId === letter.id) {
+                                    setCoverLetter("");
+                                    setCurrentCoverLetterId(null);
+                                  }
+                                  
+                                  setSuccessMessage("Cover letter deleted successfully");
+                                } else {
+                                  setError("Failed to delete cover letter");
+                                }
+                              } catch (err) {
+                                console.error('Error deleting cover letter:', err);
+                                setError("Failed to delete cover letter");
+                              }
+                            }
+                          }}
+                          className="text-red-600 hover:text-red-900 dark:text-red-400 dark:hover:text-red-300"
+                        >
+                          Delete
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
         </div>
       )}
       
