@@ -30,6 +30,17 @@ export interface GeneratedResume {
   createdAt: string;
   updatedAt: string;
 }
+export interface CoverLetter {
+  id: string;
+  content: string;
+  version: number;
+  jobApplicationId: string;
+  isPrimary: boolean;
+  fileName: string | null;
+  filePath: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
 
 export interface DetailsTabProps {
   formState: FormState;
