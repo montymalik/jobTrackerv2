@@ -74,3 +74,18 @@ model GeneratedResume {
 
   jobApplication   JobApplication @relation(fields: [jobApplicationId], references: [id], onDelete: Cascade)
 }
+
+// New model to store generated cover letters
+model CoverLetter {
+  id               String         @id @default(uuid())
+  content          String         // The cover letter text content
+  version          Int            @default(1)  // To track versions if multiple are generated
+  jobApplicationId String
+  isPrimary        Boolean        @default(true)  // Flag for the main/preferred cover letter for this application
+  fileName         String?        // Name of exported PDF if saved
+  filePath         String?        // Path to exported PDF if saved
+  createdAt        DateTime       @default(now())
+  updatedAt        DateTime       @updatedAt
+
+  jobApplication   JobApplication @relation(fields: [jobApplicationId], references: [id], onDelete: Cascade)
+}
