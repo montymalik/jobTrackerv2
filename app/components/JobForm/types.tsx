@@ -72,6 +72,8 @@ export interface FilesTabProps {
 export interface CoverLetterTabProps {
   formState: FormState;
   jobId?: string;
+  selectedCoverLetter: CoverLetter | null;
+  onCoverLetterGenerated: (coverLetterId: string | null) => void;
 }
 
 export interface ResumeGeneratorTabProps {
