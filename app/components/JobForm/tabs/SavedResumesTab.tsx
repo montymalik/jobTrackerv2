@@ -2,7 +2,6 @@ import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import ResumeEditModal from "./ResumeEditModal";
 import { GeneratedResume, SavedResumesTabProps } from "../types";
-
 // Add Cover Letter interface
 interface CoverLetter {
   id: string;
@@ -15,7 +14,6 @@ interface CoverLetter {
   createdAt: string;
   updatedAt: string;
 }
-
 // Updated WYSIWYGEditorButton component with correct parameter names
 const WYSIWYGEditorButton = ({ jobId, resumes }: { jobId: string, resumes: GeneratedResume[] }) => {
   // Find the primary resume
@@ -76,13 +74,11 @@ const WYSIWYGEditorButton = ({ jobId, resumes }: { jobId: string, resumes: Gener
     </Link>
   );
 };
-
 // Add new interface for extended props
 interface ExtendedSavedResumesTabProps extends SavedResumesTabProps {
   onSelectCoverLetter?: (coverLetter: CoverLetter) => void;
   currentCoverLetterId?: string | null;
 }
-
 const SavedResumesTab: React.FC<ExtendedSavedResumesTabProps> = ({ 
   jobId, 
   onSelectResume, 
@@ -100,7 +96,6 @@ const SavedResumesTab: React.FC<ExtendedSavedResumesTabProps> = ({
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [resumeToEdit, setResumeToEdit] = useState<GeneratedResume | null>(null);
   const [activeTab, setActiveTab] = useState<'resumes' | 'coverLetters'>('resumes');
-
   // Function to fetch resumes
   const fetchResumes = async () => {
     if (!jobId) return;
@@ -128,7 +123,6 @@ const SavedResumesTab: React.FC<ExtendedSavedResumesTabProps> = ({
       setLoading(false);
     }
   };
-
   // Function to fetch cover letters
   const fetchCoverLetters = async () => {
     if (!jobId) return;
@@ -154,7 +148,6 @@ const SavedResumesTab: React.FC<ExtendedSavedResumesTabProps> = ({
       setCoverLettersLoading(false);
     }
   };
-
   // Fetch resumes and cover letters when component mounts or jobId changes
   useEffect(() => {
     if (jobId) {
@@ -162,7 +155,6 @@ const SavedResumesTab: React.FC<ExtendedSavedResumesTabProps> = ({
       fetchCoverLetters();
     }
   }, [jobId]);
-
   // Clear success message after a delay
   useEffect(() => {
     if (successMessage) {
@@ -172,7 +164,6 @@ const SavedResumesTab: React.FC<ExtendedSavedResumesTabProps> = ({
       return () => clearTimeout(timer);
     }
   }, [successMessage]);
-
   // Handle selecting a resume
   const handleSelectResume = (resume: GeneratedResume) => {
     if (onSelectResume) {
@@ -182,9 +173,12 @@ const SavedResumesTab: React.FC<ExtendedSavedResumesTabProps> = ({
     // Show success message
     setSuccessMessage(`Resume "${resume.fileName || `Version ${resume.version}`}" selected`);
   };
-
   // Handle selecting a cover letter
-  const handleSelectCoverLetter = (coverLetter: CoverLetter) => {
+  const handleSelectCoverLetter = (coverLetter: CoverLetter, event: React.MouseEvent) => {
+    // Prevent default behavior and stop propagation
+    event.preventDefault();
+    event.stopPropagation();
+    
     if (onSelectCoverLetter) {
       onSelectCoverLetter(coverLetter);
     }
@@ -192,7 +186,6 @@ const SavedResumesTab: React.FC<ExtendedSavedResumesTabProps> = ({
     // Show success message
     setSuccessMessage(`Cover letter "${coverLetter.fileName || `Version ${coverLetter.version}`}" selected`);
   };
-
   // Handle viewing a resume in the editor
   const handleViewInEditor = (resume: GeneratedResume) => {
     if (onViewInEditor) {
@@ -244,13 +237,11 @@ const SavedResumesTab: React.FC<ExtendedSavedResumesTabProps> = ({
       throw error; // Rethrow to be caught by the modal
     }
   };
-
   // Handle setting a resume as primary
   const handleSetAsPrimary = async (resumeId: string, event: React.MouseEvent) => {
     // Prevent default behavior and stop propagation
     event.preventDefault();
     event.stopPropagation();
-
     if (!jobId) return;
     
     try {
@@ -275,13 +266,11 @@ const SavedResumesTab: React.FC<ExtendedSavedResumesTabProps> = ({
       setError(`Failed to set primary resume: ${error instanceof Error ? error.message : "Unknown error"}`);
     }
   };
-
   // Handle setting a cover letter as primary
   const handleSetCoverLetterAsPrimary = async (coverLetterId: string, event: React.MouseEvent) => {
     // Prevent default behavior and stop propagation
     event.preventDefault();
     event.stopPropagation();
-
     if (!jobId) return;
     
     try {
@@ -306,13 +295,11 @@ const SavedResumesTab: React.FC<ExtendedSavedResumesTabProps> = ({
       setError(`Failed to set primary cover letter: ${error instanceof Error ? error.message : "Unknown error"}`);
     }
   };
-
   // Handle deleting a resume
   const handleDeleteResume = async (resumeId: string, event: React.MouseEvent) => {
     // Prevent default behavior and stop propagation
     event.preventDefault();
     event.stopPropagation();
-
     if (!window.confirm("Are you sure you want to delete this resume? This action cannot be undone.")) {
       return;
     }
@@ -336,13 +323,11 @@ const SavedResumesTab: React.FC<ExtendedSavedResumesTabProps> = ({
       setError(`Failed to delete resume: ${error instanceof Error ? error.message : "Unknown error"}`);
     }
   };
-
   // Handle deleting a cover letter
   const handleDeleteCoverLetter = async (coverLetterId: string, event: React.MouseEvent) => {
     // Prevent default behavior and stop propagation
     event.preventDefault();
     event.stopPropagation();
-
     if (!window.confirm("Are you sure you want to delete this cover letter? This action cannot be undone.")) {
       return;
     }
@@ -366,13 +351,11 @@ const SavedResumesTab: React.FC<ExtendedSavedResumesTabProps> = ({
       setError(`Failed to delete cover letter: ${error instanceof Error ? error.message : "Unknown error"}`);
     }
   };
-
   // Refresh both resumes and cover letters
   const handleRefresh = () => {
     fetchResumes();
     fetchCoverLetters();
   };
-
   return (
     <div className="space-y-4">
       <div className="flex justify-between items-center mb-4">
@@ -404,7 +387,10 @@ const SavedResumesTab: React.FC<ExtendedSavedResumesTabProps> = ({
           <div className="border-b border-gray-200 dark:border-gray-700 mb-4">
             <nav className="-mb-px flex space-x-8">
               <button
-                onClick={() => setActiveTab('resumes')}
+                onClick={(e) => {
+                  e.preventDefault();
+                  setActiveTab('resumes');
+                }}
                 className={`py-2 px-1 border-b-2 font-medium text-sm ${
                   activeTab === 'resumes'
                     ? 'border-indigo-500 text-indigo-600 dark:text-indigo-400 dark:border-indigo-400'
@@ -414,7 +400,10 @@ const SavedResumesTab: React.FC<ExtendedSavedResumesTabProps> = ({
                 Resumes
               </button>
               <button
-                onClick={() => setActiveTab('coverLetters')}
+                onClick={(e) => {
+                  e.preventDefault();
+                  setActiveTab('coverLetters');
+                }}
                 className={`py-2 px-1 border-b-2 font-medium text-sm ${
                   activeTab === 'coverLetters'
                     ? 'border-indigo-500 text-indigo-600 dark:text-indigo-400 dark:border-indigo-400'
@@ -425,7 +414,6 @@ const SavedResumesTab: React.FC<ExtendedSavedResumesTabProps> = ({
               </button>
             </nav>
           </div>
-
           <div className="flex justify-between items-center mb-4">
             <h4 className="text-lg font-medium text-gray-800 dark:text-gray-200">
               {activeTab === 'resumes' ? 'Resume Versions' : 'Cover Letter Versions'}
@@ -511,7 +499,10 @@ const SavedResumesTab: React.FC<ExtendedSavedResumesTabProps> = ({
                           <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                             <div className="flex justify-end space-x-2">
                               <button
-                                onClick={() => handleSelectResume(resume)}
+                                onClick={(e) => {
+                                  e.preventDefault();
+                                  handleSelectResume(resume);
+                                }}
                                 className="text-indigo-600 hover:text-indigo-900 dark:text-indigo-400 dark:hover:text-indigo-300"
                                 title="Select Resume"
                                 type="button"
@@ -636,7 +627,7 @@ const SavedResumesTab: React.FC<ExtendedSavedResumesTabProps> = ({
                           <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                             <div className="flex justify-end space-x-2">
                               <button
-                                onClick={() => handleSelectCoverLetter(coverLetter)}
+                                onClick={(e) => handleSelectCoverLetter(coverLetter, e)}
                                 className="text-indigo-600 hover:text-indigo-900 dark:text-indigo-400 dark:hover:text-indigo-300"
                                 title="Select Cover Letter"
                                 type="button"
@@ -704,5 +695,4 @@ const SavedResumesTab: React.FC<ExtendedSavedResumesTabProps> = ({
     </div>
   );
 };
-
 export default SavedResumesTab;
