@@ -15,14 +15,20 @@ import SavedResumesTab from "./tabs/SavedResumesTab";
 import AIToolsTab from "./tabs/AIToolsTab";
 // Sidebar component
 import LeftSidebar from "./LeftSidebar";
-// Define resume interface from types
-import { GeneratedResume } from "./types";
+// Define resume and cover letter interfaces from types
+import { GeneratedResume, CoverLetter } from "./types";
 
 export function JobForm({ job, onSubmit, onCancel }: JobFormProps) {
   const [activeTab, setActiveTab] = useState("details");
   const [isSubmitting, setIsSubmitting] = useState(false);
+  
+  // Resume state
   const [selectedResume, setSelectedResume] = useState<GeneratedResume | null>(null);
   const [currentResumeId, setCurrentResumeId] = useState<string | null>(null);
+  
+  // Cover letter state
+  const [selectedCoverLetter, setSelectedCoverLetter] = useState<CoverLetter | null>(null);
+  const [currentCoverLetterId, setCurrentCoverLetterId] = useState<string | null>(null);
   
   const { 
     formState, 
@@ -69,10 +75,23 @@ export function JobForm({ job, onSubmit, onCancel }: JobFormProps) {
     // Switch to the resume generator tab to show the selected resume
     setActiveTab('resumeGenerator');
   };
-
+  
   // Handle when a resume is generated or updated
   const handleResumeGenerated = (resumeId: string | null) => {
     setCurrentResumeId(resumeId);
+  };
+  
+  // Handle when a cover letter is selected from the saved documents tab
+  const handleCoverLetterSelect = (coverLetter: CoverLetter) => {
+    setSelectedCoverLetter(coverLetter);
+    
+    // Switch to the cover letter tab to show the selected cover letter
+    setActiveTab('coverLetter');
+  };
+  
+  // Handle when a cover letter is generated or updated
+  const handleCoverLetterGenerated = (coverLetterId: string | null) => {
+    setCurrentCoverLetterId(coverLetterId);
   };
   
   const handleSubmit = async (e?: React.FormEvent) => {
@@ -118,7 +137,7 @@ export function JobForm({ job, onSubmit, onCancel }: JobFormProps) {
     { id: "files", label: "Files", icon: "📎" },
     { id: "coverLetter", label: "AI Cover Letter", icon: "✉️" },
     { id: "resumeGenerator", label: "AI Resume", icon: "📄" },
-    { id: "savedResumes", label: "Saved Resumes", icon: "📚" },
+    { id: "savedResumes", label: "Saved Documents", icon: "📚" },
     { id: "aiTools", label: "AI Tools", icon: "🧠" },
   ];
   
@@ -168,6 +187,8 @@ export function JobForm({ job, onSubmit, onCancel }: JobFormProps) {
               <CoverLetterTab 
                 formState={formState}
                 jobId={job?.id}
+                onCoverLetterGenerated={handleCoverLetterGenerated}
+                selectedCoverLetter={selectedCoverLetter}
               />
             )}
             
@@ -186,6 +207,8 @@ export function JobForm({ job, onSubmit, onCancel }: JobFormProps) {
                 onSelectResume={handleResumeSelect}
                 onViewInEditor={handleResumeSelect}
                 currentResumeId={currentResumeId}
+                onSelectCoverLetter={handleCoverLetterSelect}
+                currentCoverLetterId={currentCoverLetterId}
               />
             )}
             
@@ -234,4 +257,5 @@ export function JobForm({ job, onSubmit, onCancel }: JobFormProps) {
     </>
   );
 }
+
 export default JobForm;
