@@ -78,3 +78,33 @@ export interface ResumeGeneratorTabProps {
   onResumeGenerated?: (resumeId: string | null) => void;
   selectedResume?: GeneratedResume | null;
 }
+
+// New interfaces for cover letter functionality
+
+export interface CoverLetter {
+  id: string;
+  content: string;
+  version: number;
+  jobApplicationId: string;
+  isPrimary: boolean;
+  fileName: string | null;
+  filePath: string | null;
+  createdAt: string | Date;
+  updatedAt: string | Date;
+}
+
+export interface CoverLetterTabProps {
+  formState: FormState;
+  jobId?: string;
+  onCoverLetterGenerated?: (coverLetterId: string | null) => void;
+  selectedCoverLetter?: CoverLetter | null;
+}
+
+export interface SavedResumesTabProps {
+  jobId: string;
+  onSelectResume?: (resume: GeneratedResume) => void;
+  onViewInEditor?: (resume: GeneratedResume) => void;
+  currentResumeId?: string | null;
+  onSelectCoverLetter?: (coverLetter: CoverLetter) => void;
+  currentCoverLetterId?: string | null;
+}
