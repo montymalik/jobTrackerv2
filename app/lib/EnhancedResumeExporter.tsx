@@ -28,6 +28,7 @@ interface EnhancedResumeExportOptions extends PdfExportOptions {
   sectionSpacing?: number; // Control spacing between sections
   includeAllSections?: boolean; // Force include all sections
   removeSummaryTitle?: boolean; // Option to remove only the summary section title
+  defaultLocation?: string; // Default location to include in contact info if not present
 }
 export interface EnhancedResumeExportParams {
   content: string;
@@ -68,13 +69,18 @@ const processResumeSections = (sections: ResumeSection[], options: EnhancedResum
     // Extract contact info - make sure it's included
     const contactMatch = header.content.match(/<p[^>]*>(.*?)<\/p>/i);
     if (contactMatch && contactMatch[1]) {
-      markdown += `${stripHtml(contactMatch[1])}\n\n`;
+      let contactInfo = stripHtml(contactMatch[1]);
+      // Ensure location is included if a default is provided in options
+      contactInfo = ensureLocationInContactInfo(contactInfo, options.defaultLocation);
+      markdown += `${contactInfo}\n\n`;
       
       // Add a marker for the horizontal line to ensure it's created
       markdown += `<!--CONTACT_DIVIDER-->\n\n`;
     } else {
       // Fallback - look for any contact info in the header content
-      const contactInfo = extractContactInfo(header.content);
+      let contactInfo = extractContactInfo(header.content);
+      // Ensure location is included if a default is provided in options
+      contactInfo = ensureLocationInContactInfo(contactInfo, options.defaultLocation);
       if (contactInfo) {
         markdown += `${contactInfo}\n\n`;
         
@@ -242,28 +248,32 @@ const processResumeSections = (sections: ResumeSection[], options: EnhancedResum
         }
       }
     } else if (section.type === ResumeSectionType.EDUCATION) {
-      // Extract education details
+      // Try to extract degree information first
+      const degreeMatch = section.content.match(/<h3[^>]*>(.*?)<\/h3>/i);
+      const degree = degreeMatch ? stripHtml(degreeMatch[1]) : '';
+      
+      // Extract school and year information
       const paragraphs = extractParagraphs(section.content);
+      
+      // Format with degree displayed above school
+      if (degree) {
+        markdown += `### ${degree}\n\n`;
+      }
+      
       if (paragraphs.length > 0) {
         paragraphs.forEach(p => {
           markdown += `${p}\n\n`;
         });
       } else {
-        // Extract h3 sections if any
-        const educationEntries = section.content.match(/<h3[^>]*>(.*?)<\/h3>[\s\S]*?(?=<h3|$)/gi);
-        if (educationEntries && educationEntries.length > 0) {
-          educationEntries.forEach(entry => {
-            const titleMatch = entry.match(/<h3[^>]*>(.*?)<\/h3>/i);
-            if (titleMatch) {
-              markdown += `### ${stripHtml(titleMatch[1])}\n\n`;
-            }
-            
-            const paragraphs = extractParagraphs(entry);
-            paragraphs.forEach(p => {
-              markdown += `${p}\n\n`;
-            });
-          });
+        // If no structured paragraphs found, try to parse manually
+        // Look for patterns like "University of X | YYYY" or similar
+        const schoolYearMatch = section.content.match(/([^|]+)\s*\|\s*(\d{4})/);
+        if (schoolYearMatch) {
+          const school = schoolYearMatch[1].trim();
+          const year = schoolYearMatch[2].trim();
+          markdown += `${school} | ${year}\n\n`;
         } else {
+          // Fallback to stripped HTML content
           markdown += `${stripHtml(section.content)}\n\n`;
         }
       }
@@ -284,19 +294,55 @@ const processResumeSections = (sections: ResumeSection[], options: EnhancedResum
   return markdown;
 };
 /**
- * Attempt to extract contact information from header content
+ * Helper function to ensure location is included in contact info
+ */
+const ensureLocationInContactInfo = (contactInfo: string, defaultLocation?: string): string => {
+  if (!defaultLocation) return contactInfo;
+  
+  // Check if the contact info already contains what looks like a location
+  const hasLocation = /[A-Z][a-zA-Z\s]+,\s*[A-Z]{2}/.test(contactInfo);
+  
+  if (!hasLocation && contactInfo.trim()) {
+    // Add the default location with a separator
+    return `${contactInfo} | ${defaultLocation}`;
+  }
+  
+  return contactInfo;
+};
+/**
+ * Improved function to extract contact information from header content
+ * with better location detection
  */
 const extractContactInfo = (html: string): string => {
   // Look for content that looks like contact info (emails, phone numbers, etc.)
   const emailMatch = html.match(/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/);
   const phoneMatch = html.match(/(\+\d{1,2}\s?)?\(?\d{3}\)?[\s.-]?\d{3}[\s.-]?\d{4}/);
-  const locationMatch = html.match(/(?:City|Location|Address):\s*([^<>\n,]+(?:,[^<>\n]+)?)/i);
+  
+  // Enhanced location detection with multiple patterns
+  let locationMatch = null;
+  // First try to find explicit location labels
+  const explicitLocationMatch = html.match(/(?:City|Location|Address):\s*([^<>\n,|]+(?:,[^<>\n|]+)?)/i);
+  if (explicitLocationMatch) {
+    locationMatch = explicitLocationMatch[1];
+  } else {
+    // Look for common location patterns (City, State or City, State ZIP)
+    const cityStateMatch = html.match(/([A-Z][a-zA-Z\s]+,\s*[A-Z]{2}(?:\s+\d{5}(?:-\d{4})?)?)/);
+    if (cityStateMatch) {
+      locationMatch = cityStateMatch[1];
+    } else {
+      // Look for standalone location that might be after email/phone
+      const standaloneLocation = html.match(/\|\s*([A-Z][a-zA-Z\s]+(?:,\s*[A-Z]{2})?)/);
+      if (standaloneLocation) {
+        locationMatch = standaloneLocation[1].trim();
+      }
+    }
+  }
   
   let contactParts = [];
   
   if (emailMatch) contactParts.push(emailMatch[0]);
   if (phoneMatch) contactParts.push(phoneMatch[0]);
-  if (locationMatch) contactParts.push(locationMatch[1]);
+  if (locationMatch) contactParts.push(locationMatch);
   
   // If we found at least one part, join them with separator
   if (contactParts.length > 0) {
@@ -317,7 +363,6 @@ const extractContactInfo = (html: string): string => {
   
   return '';
 };
-
 /**
  * Extract paragraphs from HTML content
  */
@@ -336,7 +381,6 @@ const extractParagraphs = (html: string): string[] => {
   
   return paragraphs;
 };
-
 /**
  * Extract bullet points from HTML content
  */
@@ -369,7 +413,6 @@ const extractBulletPoints = (html: string): string[] => {
   
   return bullets;
 };
-
 /**
  * Strip HTML tags from a string
  */
@@ -377,7 +420,6 @@ const stripHtml = (html: string): string => {
   if (!html) return '';
   return html.replace(/<\/?[^>]+(>|$)/g, "").trim();
 };
-
 /**
  * Enhanced function to export resume to PDF with better styling and complete content
  * Revised to fix job role formatting and header details
@@ -410,10 +452,10 @@ interface EnhancedResumeExporterProps {
   isDisabled?: boolean;
   companyNameBeforeTitle?: boolean;
   removeSummaryTitle?: boolean;
+  defaultLocation?: string; // New property for default location
   onSuccess?: () => void;
   onError?: (error: Error) => void;
 }
-
 // Create the React component that wraps the export function
 export const EnhancedResumeExporter: React.FC<EnhancedResumeExporterProps> = ({
   resumeSections,
@@ -432,6 +474,7 @@ export const EnhancedResumeExporter: React.FC<EnhancedResumeExporterProps> = ({
   isDisabled = false,
   companyNameBeforeTitle = false,
   removeSummaryTitle = true, // Default to removing the summary title
+  defaultLocation, // New property for default location
   onSuccess,
   onError
 }) => {
@@ -452,7 +495,8 @@ export const EnhancedResumeExporter: React.FC<EnhancedResumeExporterProps> = ({
         includeAllSections,
         removeTitlesOnly,
         companyNameBeforeTitle,
-        removeSummaryTitle: removeSummaryTitle === true
+        removeSummaryTitle: removeSummaryTitle === true,
+        defaultLocation // Pass the default location to options
       };
       await exportEnhancedResumeToPdf({
         content: contentFallback,
@@ -482,7 +526,6 @@ export const EnhancedResumeExporter: React.FC<EnhancedResumeExporterProps> = ({
     </button>
   );
 };
-
 export const exportEnhancedResumeToPdf = async ({ 
   content, 
   contentType = 'markdown',
@@ -706,8 +749,7 @@ export const exportEnhancedResumeToPdf = async ({
       widows: 4;
     }
   `;
-  
-  // Create a custom renderer that handles resume-specific formatting
+// Create a custom renderer that handles resume-specific formatting
   // Replace the resumeRenderer function with this updated version that doesn't add a duplicate divider
 const resumeRenderer = (content: string, element: HTMLElement) => {
   // Special preprocessing for skill entries
@@ -942,6 +984,14 @@ const resumeRenderer = (content: string, element: HTMLElement) => {
       
       // If this looks like a contact info line (right after name), format it specially
       if (i > 0 && lines[i-1].startsWith('# ')) {
+        // Check if we need to add location to contact info
+        const hasLocation = /[A-Z][a-zA-Z\s]+,\s*[A-Z]{2}/.test(formattedLine);
+        
+        if (!hasLocation && options.defaultLocation) {
+          // Add default location with proper separator
+          formattedLine = `${formattedLine} | ${options.defaultLocation}`;
+        }
+        
         // Add contact info
         htmlContent += '<div class="contact-info">' + formattedLine + '</div>';
         contactInfoAdded = true;
@@ -1003,80 +1053,81 @@ const resumeRenderer = (content: string, element: HTMLElement) => {
     (el as HTMLElement).style.color = '#000000';
   });
 };
-  // Helper to get all text nodes in an element (for text cleaning)
-  const getTextNodes = (node: Node): Text[] => {
-    const textNodes: Text[] = [];
-    
-    const walker = document.createTreeWalker(
-      node, 
-      NodeFilter.SHOW_TEXT,
-      null
-    );
-    
-    let currentNode: Node | null;
-    while (currentNode = walker.nextNode()) {
-      textNodes.push(currentNode as Text);
+
+// Helper to get all text nodes in an element (for text cleaning)
+const getTextNodes = (node: Node): Text[] => {
+  const textNodes: Text[] = [];
+  
+  const walker = document.createTreeWalker(
+    node, 
+    NodeFilter.SHOW_TEXT,
+    null
+  );
+  
+  let currentNode: Node | null;
+  while (currentNode = walker.nextNode()) {
+    textNodes.push(currentNode as Text);
+  }
+  
+  return textNodes;
+};
+
+// Extend the options with our resume-specific settings
+const enhancedOptions: PdfExportOptions = {
+  ...options,
+  customStyles: resumeStyles + (options.customStyles || ''),
+  customRenderer: resumeRenderer,
+  margin: [0.25, 0.25, 0.25, 0.25], // 0.25" margins all around
+  pageSize: 'letter',
+  orientation: 'portrait',
+  // Ensure our option is explicitly defined
+  removeSummaryTitle: options.removeSummaryTitle === true,
+  
+  // Use special PDF settings to avoid breaking job sections
+  extraCss: `
+    @page {
+      size: letter portrait;
+      margin: 0.25in 0.25in 0.25in 0.25in;
     }
-    
-    return textNodes;
-  };
-  
-  // Extend the options with our resume-specific settings
-  const enhancedOptions: PdfExportOptions = {
-    ...options,
-    customStyles: resumeStyles + (options.customStyles || ''),
-    customRenderer: resumeRenderer,
-    margin: [0.25, 0.25, 0.25, 0.25], // 0.25" margins all around
-    pageSize: 'letter',
-    orientation: 'portrait',
-    // Ensure our option is explicitly defined
-    removeSummaryTitle: options.removeSummaryTitle === true,
-    
-    // Use special PDF settings to avoid breaking job sections
-    extraCss: `
-      @page {
-        size: letter portrait;
-        margin: 0.25in 0.25in 0.25in 0.25in;
-      }
-      .lab-manager-section {
-        page-break-before: always !important;
-      }
-      .job-section {
-        page-break-inside: avoid !important;
-      }
-      h2, h3 {
-        page-break-after: avoid !important;
-        page-break-inside: avoid !important;
-      }
-      h2 + p, h3 + p {
-        page-break-inside: avoid !important;
-      }
-      p, li {
-        page-break-inside: avoid !important;
-      }
-      /* Add this override to ensure the contact-info:after doesn't appear */
-      .contact-info:after {
-        display: none !important;
-      }
-      .contact-info + .header-divider {
-        display: block !important;
-        height: 1px !important;
-        background-color: #dddddd !important;
-        margin-top: 10px !important;
-        margin-bottom: 10px !important;
-        width: 100% !important;
-      }
-      .summary-spacing {
-        margin-top: 10px !important;
-      }
-    `,
-  };
-  
-  // Call the generic PDF exporter with our specialized options
-  await exportContentToPdf({
-    content: cleanedContent,
-    contentType,
-    metadata,
-    options: enhancedOptions
-  });
+    .lab-manager-section {
+      page-break-before: always !important;
+    }
+    .job-section {
+      page-break-inside: avoid !important;
+    }
+    h2, h3 {
+      page-break-after: avoid !important;
+      page-break-inside: avoid !important;
+    }
+    h2 + p, h3 + p {
+      page-break-inside: avoid !important;
+    }
+    p, li {
+      page-break-inside: avoid !important;
+    }
+    /* Add this override to ensure the contact-info:after doesn't appear */
+    .contact-info:after {
+      display: none !important;
+    }
+    .contact-info + .header-divider {
+      display: block !important;
+      height: 1px !important;
+      background-color: #dddddd !important;
+      margin-top: 10px !important;
+      margin-bottom: 10px !important;
+      width: 100% !important;
+    }
+    .summary-spacing {
+      margin-top: 10px !important;
+    }
+  `,
+};
+
+// Call the generic PDF exporter with our specialized options
+await exportContentToPdf({
+  content: cleanedContent,
+  contentType,
+  metadata,
+  options: enhancedOptions
+});
 };

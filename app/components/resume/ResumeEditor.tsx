@@ -257,6 +257,7 @@ const orderedCompleteSections = useMemo(() => {
               {/* Updated to use the properly ordered sections list */}
               <EnhancedResumeExporter
                 resumeSections={orderedCompleteSections}
+                defaultLocation="London, ON"
                 contentFallback={pdfExportContent}
                 contentType="markdown"
                 filename={`Resume_${new Date().toISOString().split('T')[0]}.pdf`}
