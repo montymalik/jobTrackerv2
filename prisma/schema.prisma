@@ -65,6 +65,8 @@ model BaseResume {
 model GeneratedResume {
   id               String         @id @default(uuid())
   markdownContent  String         // Markdown version of the resume
+  jsonContent     String?   @db.Text // Add this field for structured JSON data
+  contentType     String?   @default("markdown") // Add this field to indicate content type
   version          Int            @default(1)  // To track versions if multiple are generated
   jobApplicationId String
   isPrimary        Boolean        @default(true)  // Flag for the main/preferred resume for this application

@@ -7,12 +7,17 @@ export async function PUT(request: NextRequest) {
   try {
     // Parse the request body
     const body = await request.json();
-    const { id, markdownContent } = body;
+    const { 
+      id, 
+      markdownContent, 
+      jsonContent = null,
+      contentType = 'markdown'
+    } = body;
 
     // Validate required fields
-    if (!id || !markdownContent) {
+    if (!id || (!markdownContent && !jsonContent)) {
       return NextResponse.json(
-        { message: 'Resume ID and markdown content are required' },
+        { message: 'Resume ID and content (markdown or JSON) are required' },
         { status: 400 }
       );
     }
@@ -29,13 +34,30 @@ export async function PUT(request: NextRequest) {
       );
     }
 
+    // Prepare data for update
+    const updateData: any = {
+      updatedAt: new Date()
+    };
+
+    // Always update markdown content for backward compatibility
+    if (markdownContent) {
+      updateData.markdownContent = markdownContent;
+    }
+
+    // Update JSON content if provided
+    if (jsonContent) {
+      updateData.jsonContent = typeof jsonContent === 'string' 
+        ? jsonContent 
+        : JSON.stringify(jsonContent);
+      updateData.contentType = 'json';
+    } else {
+      updateData.contentType = contentType;
+    }
+
     // Update the resume content
     const updatedResume = await prisma.generatedResume.update({
       where: { id },
-      data: { 
-        markdownContent,
-        updatedAt: new Date()
-      },
+      data: updateData,
     });
 
     return NextResponse.json(updatedResume, { status: 200 });

@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import ResumeEditModal from "./ResumeEditModal";
 import { GeneratedResume, SavedResumesTabProps } from "../types";
+
 // Add Cover Letter interface
 interface CoverLetter {
   id: string;
@@ -14,6 +15,7 @@ interface CoverLetter {
   createdAt: string;
   updatedAt: string;
 }
+
 // Updated WYSIWYGEditorButton component with correct parameter names
 const WYSIWYGEditorButton = ({ jobId, resumes }: { jobId: string, resumes: GeneratedResume[] }) => {
   // Find the primary resume
@@ -74,11 +76,71 @@ const WYSIWYGEditorButton = ({ jobId, resumes }: { jobId: string, resumes: Gener
     </Link>
   );
 };
+
+// New ResumeBuilderButton component
+const ResumeBuilderButton = ({ jobId, resumes }: { jobId: string, resumes: GeneratedResume[] }) => {
+  // Find the primary resume
+  const primaryResume = resumes.find(resume => resume.isPrimary);
+  
+  // If no primary resume is found, we can't navigate to the resume builder
+  if (!primaryResume) {
+    return (
+      <button 
+        disabled
+        className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-gray-400 cursor-not-allowed"
+      >
+        <svg 
+          xmlns="http://www.w3.org/2000/svg" 
+          className="h-5 w-5 mr-2" 
+          fill="none" 
+          viewBox="0 0 24 24" 
+          stroke="currentColor"
+        >
+          <path 
+            strokeLinecap="round" 
+            strokeLinejoin="round" 
+            strokeWidth={2} 
+            d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" 
+          />
+        </svg>
+        No Primary Resume
+      </button>
+    );
+  }
+  
+  // URL for the new resume builder
+  const builderUrl = `/resume-builder/${jobId}?resumeId=${primaryResume.id}`;
+  
+  return (
+    <Link
+      href={builderUrl}
+      className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500"
+    >
+      <svg 
+        xmlns="http://www.w3.org/2000/svg" 
+        className="h-5 w-5 mr-2" 
+        fill="none" 
+        viewBox="0 0 24 24" 
+        stroke="currentColor"
+      >
+        <path 
+          strokeLinecap="round" 
+          strokeLinejoin="round" 
+          strokeWidth={2} 
+          d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" 
+        />
+      </svg>
+      Modern Resume Builder
+    </Link>
+  );
+};
+
 // Add new interface for extended props
 interface ExtendedSavedResumesTabProps extends SavedResumesTabProps {
   onSelectCoverLetter?: (coverLetter: CoverLetter) => void;
   currentCoverLetterId?: string | null;
 }
+
 const SavedResumesTab: React.FC<ExtendedSavedResumesTabProps> = ({ 
   jobId, 
   onSelectResume, 
@@ -96,6 +158,7 @@ const SavedResumesTab: React.FC<ExtendedSavedResumesTabProps> = ({
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [resumeToEdit, setResumeToEdit] = useState<GeneratedResume | null>(null);
   const [activeTab, setActiveTab] = useState<'resumes' | 'coverLetters'>('resumes');
+  
   // Function to fetch resumes
   const fetchResumes = async () => {
     if (!jobId) return;
@@ -123,6 +186,7 @@ const SavedResumesTab: React.FC<ExtendedSavedResumesTabProps> = ({
       setLoading(false);
     }
   };
+  
   // Function to fetch cover letters
   const fetchCoverLetters = async () => {
     if (!jobId) return;
@@ -148,6 +212,7 @@ const SavedResumesTab: React.FC<ExtendedSavedResumesTabProps> = ({
       setCoverLettersLoading(false);
     }
   };
+  
   // Fetch resumes and cover letters when component mounts or jobId changes
   useEffect(() => {
     if (jobId) {
@@ -155,6 +220,7 @@ const SavedResumesTab: React.FC<ExtendedSavedResumesTabProps> = ({
       fetchCoverLetters();
     }
   }, [jobId]);
+  
   // Clear success message after a delay
   useEffect(() => {
     if (successMessage) {
@@ -164,6 +230,7 @@ const SavedResumesTab: React.FC<ExtendedSavedResumesTabProps> = ({
       return () => clearTimeout(timer);
     }
   }, [successMessage]);
+  
   // Handle selecting a resume
   const handleSelectResume = (resume: GeneratedResume) => {
     if (onSelectResume) {
@@ -173,6 +240,7 @@ const SavedResumesTab: React.FC<ExtendedSavedResumesTabProps> = ({
     // Show success message
     setSuccessMessage(`Resume "${resume.fileName || `Version ${resume.version}`}" selected`);
   };
+  
   // Handle selecting a cover letter
   const handleSelectCoverLetter = (coverLetter: CoverLetter, event: React.MouseEvent) => {
     // Prevent default behavior and stop propagation
@@ -186,6 +254,7 @@ const SavedResumesTab: React.FC<ExtendedSavedResumesTabProps> = ({
     // Show success message
     setSuccessMessage(`Cover letter "${coverLetter.fileName || `Version ${coverLetter.version}`}" selected`);
   };
+  
   // Handle viewing a resume in the editor
   const handleViewInEditor = (resume: GeneratedResume) => {
     if (onViewInEditor) {
@@ -237,6 +306,7 @@ const SavedResumesTab: React.FC<ExtendedSavedResumesTabProps> = ({
       throw error; // Rethrow to be caught by the modal
     }
   };
+  
   // Handle setting a resume as primary
   const handleSetAsPrimary = async (resumeId: string, event: React.MouseEvent) => {
     // Prevent default behavior and stop propagation
@@ -266,6 +336,7 @@ const SavedResumesTab: React.FC<ExtendedSavedResumesTabProps> = ({
       setError(`Failed to set primary resume: ${error instanceof Error ? error.message : "Unknown error"}`);
     }
   };
+  
   // Handle setting a cover letter as primary
   const handleSetCoverLetterAsPrimary = async (coverLetterId: string, event: React.MouseEvent) => {
     // Prevent default behavior and stop propagation
@@ -295,6 +366,7 @@ const SavedResumesTab: React.FC<ExtendedSavedResumesTabProps> = ({
       setError(`Failed to set primary cover letter: ${error instanceof Error ? error.message : "Unknown error"}`);
     }
   };
+  
   // Handle deleting a resume
   const handleDeleteResume = async (resumeId: string, event: React.MouseEvent) => {
     // Prevent default behavior and stop propagation
@@ -323,6 +395,7 @@ const SavedResumesTab: React.FC<ExtendedSavedResumesTabProps> = ({
       setError(`Failed to delete resume: ${error instanceof Error ? error.message : "Unknown error"}`);
     }
   };
+  
   // Handle deleting a cover letter
   const handleDeleteCoverLetter = async (coverLetterId: string, event: React.MouseEvent) => {
     // Prevent default behavior and stop propagation
@@ -351,11 +424,13 @@ const SavedResumesTab: React.FC<ExtendedSavedResumesTabProps> = ({
       setError(`Failed to delete cover letter: ${error instanceof Error ? error.message : "Unknown error"}`);
     }
   };
+  
   // Refresh both resumes and cover letters
   const handleRefresh = () => {
     fetchResumes();
     fetchCoverLetters();
   };
+  
   return (
     <div className="space-y-4">
       <div className="flex justify-between items-center mb-4">
@@ -363,9 +438,15 @@ const SavedResumesTab: React.FC<ExtendedSavedResumesTabProps> = ({
           Saved Documents
         </h3>
         
-        {/* Only display button if we have both jobId and at least one resume */}
+        {/* Buttons row, showing both editor options */}
         {jobId && resumes.length > 0 && (
-          <WYSIWYGEditorButton jobId={jobId} resumes={resumes} />
+          <div className="flex space-x-2">
+            {/* New Modern Resume Builder Button */}
+            <ResumeBuilderButton jobId={jobId} resumes={resumes} />
+            
+            {/* Existing WYSIWYG Editor Button */}
+            <WYSIWYGEditorButton jobId={jobId} resumes={resumes} />
+          </div>
         )}
       </div>
       
@@ -695,4 +776,5 @@ const SavedResumesTab: React.FC<ExtendedSavedResumesTabProps> = ({
     </div>
   );
 };
+
 export default SavedResumesTab;
