@@ -276,7 +276,7 @@ const ResumeGeneratorTab: React.FC<ResumeGeneratorTabProps> = ({
   useEffect(() => {
     if (selectedResume) {
       // Parse the content to ensure it's valid JSON
-      const content: string = cleanJsonString(selectedResume.markdownContent);
+      const content: string = cleanJsonString(selectedResume.jsonContent);
       
       // Update resume content
       updateResumeContent(content);
@@ -478,7 +478,7 @@ Please create a resume for a [ROLE/POSITION] with experience in [INDUSTRY/FIELD]
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             id: currentResumeId,
-            markdownContent: contentToSave, // Store JSON content in markdownContent field
+            jsonContent: contentToSave, // Store JSON content in markdownContent field
             rawJson: parsedContent // Add structured JSON data
           }),
         });
@@ -498,7 +498,7 @@ Please create a resume for a [ROLE/POSITION] with experience in [INDUSTRY/FIELD]
         
         const requestBody = {
           jobApplicationId: jobId,
-          markdownContent: contentToSave, // Store JSON content in markdownContent field
+          jsonContent: contentToSave, // Store JSON content in markdownContent field
           isPrimary: true,
           rawJson: parsedContent // Add structured JSON data
         };

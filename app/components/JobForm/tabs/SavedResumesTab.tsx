@@ -289,7 +289,7 @@ const SavedResumesTab: React.FC<ExtendedSavedResumesTabProps> = ({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           id: resumeToEdit.id,
-          markdownContent: updatedContent
+          jsonContent: updatedContent
         }),
       });
       

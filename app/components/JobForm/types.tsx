@@ -22,6 +22,7 @@ export interface FormState {
 export interface GeneratedResume {
   id: string;
   markdownContent: string;
+  jsonContent: string;
   version: number;
   jobApplicationId: string;
   isPrimary: boolean;

@@ -1,6 +1,7 @@
 // app/components/resume/builder/hooks/useResumeData.ts
 import { useState, useEffect } from 'react';
 import { ResumeSection, ResumeSectionType } from '@/app/lib/types';
+
 /**
  * Custom hook to load and manage resume data
  */
@@ -12,6 +13,7 @@ export const useResumeData = (resumeId?: string, jobApplicationId?: string) => {
   const [saveSuccess, setSaveSuccess] = useState(false);
   const [currentResumeId, setCurrentResumeId] = useState<string | null>(resumeId || null);
   const [jobDescription, setJobDescription] = useState<string>(''); 
+
   // Load resume data
   useEffect(() => {
     const loadResume = async () => {
@@ -47,61 +49,61 @@ export const useResumeData = (resumeId?: string, jobApplicationId?: string) => {
         let extractedJobDescription;
         
         // Handle check endpoint
-         if (response.url.includes('/api/resume/check')) {
-  if (data.found && data.resume) {
-    console.log("Found resume via check endpoint");
-    resumeContent = data.resume.markdownContent;
-    extractedResumeId = data.resume.id;
-    
-    // Check for job description at all possible locations
-    console.log("Looking for job description in API response...");
-    if (data.resume.jobDescription) {
-      console.log("Found jobDescription directly in resume object");
-      extractedJobDescription = data.resume.jobDescription;
-    } 
-    else if (data.resume.jobApplication && data.resume.jobApplication.jobDescription) {
-      console.log("Found jobDescription in resume.jobApplication object");
-      extractedJobDescription = data.resume.jobApplication.jobDescription;
-    }
-    // Perform a depth-first search for jobDescription through nested objects
-    else {
-      const findJobDescription = (obj: any, path = ""): string | null => {
-        if (!obj || typeof obj !== 'object') return null;
-        
-        if (obj.jobDescription && typeof obj.jobDescription === 'string') {
-          console.log(`Found jobDescription at path: ${path}.jobDescription`);
-          return obj.jobDescription;
+        if (response.url.includes('/api/resume/check')) {
+          if (data.found && data.resume) {
+            console.log("Found resume via check endpoint");
+            resumeContent = data.resume.jsonContent;
+            extractedResumeId = data.resume.id;
+            
+            // Check for job description at all possible locations
+            console.log("Looking for job description in API response...");
+            if (data.resume.jobDescription) {
+              console.log("Found jobDescription directly in resume object");
+              extractedJobDescription = data.resume.jobDescription;
+            } 
+            else if (data.resume.jobApplication && data.resume.jobApplication.jobDescription) {
+              console.log("Found jobDescription in resume.jobApplication object");
+              extractedJobDescription = data.resume.jobApplication.jobDescription;
+            }
+            // Perform a depth-first search for jobDescription through nested objects
+            else {
+              const findJobDescription = (obj: any, path = ""): string | null => {
+                if (!obj || typeof obj !== 'object') return null;
+                
+                if (obj.jobDescription && typeof obj.jobDescription === 'string') {
+                  console.log(`Found jobDescription at path: ${path}.jobDescription`);
+                  return obj.jobDescription;
+                }
+                
+                for (const key in obj) {
+                  if (key === 'jobDescription' && typeof obj[key] === 'string') {
+                    console.log(`Found jobDescription at path: ${path}.${key}`);
+                    return obj[key];
+                  }
+                  
+                  if (typeof obj[key] === 'object' && obj[key] !== null) {
+                    const result = findJobDescription(obj[key], `${path}.${key}`);
+                    if (result) return result;
+                  }
+                }
+                
+                return null;
+              };
+              
+              const foundJobDesc = findJobDescription(data);
+              if (foundJobDesc) {
+                extractedJobDescription = foundJobDesc;
+              }
+            }
+          }
         }
         
-        for (const key in obj) {
-          if (key === 'jobDescription' && typeof obj[key] === 'string') {
-            console.log(`Found jobDescription at path: ${path}.${key}`);
-            return obj[key];
-          }
-          
-          if (typeof obj[key] === 'object' && obj[key] !== null) {
-            const result = findJobDescription(obj[key], `${path}.${key}`);
-            if (result) return result;
-          }
-        }
-        
-        return null;
-      };
-      
-      const foundJobDesc = findJobDescription(data);
-      if (foundJobDesc) {
-        extractedJobDescription = foundJobDesc;
-      }
-    }
-  }
-}
- 
         // Handle primary resume endpoint
         else if (response.url.includes('/api/resume/get-primary')) {
           // /api/resume/get-primary returns a Resume object or empty object if none found
-          if (data && data.id && data.markdownContent) {
+          if (data && data.id && data.jsonContent) {
             console.log("Found primary resume", data.id);
-            resumeContent = data.markdownContent;
+            resumeContent = data.jsonContent;
             extractedResumeId = data.id;
             
             // Also fetch job description if available
@@ -147,12 +149,12 @@ export const useResumeData = (resumeId?: string, jobApplicationId?: string) => {
         
         // Set job description if we found one
         if (extractedJobDescription) {
-           console.log(`Found job description, length: ${extractedJobDescription.length}`);
-           setJobDescription(extractedJobDescription);
+          console.log(`Found job description, length: ${extractedJobDescription.length}`);
+          setJobDescription(extractedJobDescription);
         } else {
-           console.log("No job description found in API response");
-        // Reset to empty string if not found
-           setJobDescription('');
+          console.log("No job description found in API response");
+          // Reset to empty string if not found
+          setJobDescription('');
         }
         if (!resumeContent) {
           console.error("No resume content could be extracted");
@@ -233,171 +235,208 @@ export const useResumeData = (resumeId?: string, jobApplicationId?: string) => {
     return result;
   };
   
-  // Parse resume content (markdown or JSON) into sections
-  // Updated parseResumeToSections function to handle the LLM's JSON output format
-  // Fixed function with proper return paths
-const parseResumeToSections = (content: string): ResumeSection[] => {
-  try {
-    // First, try to parse as JSON
-    const jsonData = JSON.parse(content);
-    console.log("Parsed content as JSON:", jsonData);
-    
-    // Check if this is the specific format with a raw property
-    if (jsonData.raw) {
-      console.log("Found raw content property in JSON - parsing as markdown");
-      // If we have a raw property, parse it as markdown instead
-      return parseMarkdownContent(jsonData.raw);
-    }
-    
-    // Check if this is JSON data with a header object (our LLM format)
-    if (jsonData.header) {
-      console.log("Found JSON with header object - handling as LLM output");
-      return convertLlmJsonToSections(jsonData);
-    }
-    
-    // If not in LLM format but still JSON, return empty array or default sections
-    console.log("JSON format not recognized, returning empty sections");
-    return [];
-    
-  } catch (e) {
-    console.log("Content is not valid JSON, treating as markdown/HTML");
-    return parseMarkdownContent(content);
-  }
-};
-  // Helper function to convert LLM JSON format to sections
-const convertLlmJsonToSections = (jsonData: any): ResumeSection[] => {
-  const sections: ResumeSection[] = [];
-  
-  // Process header
-  if (jsonData.header) {
-    const { name, email, phone, location } = jsonData.header;
-    sections.push({
-      id: 'header',
-      title: 'Header',
-      type: ResumeSectionType.HEADER,
-      content: `<h1 class="text-2xl font-bold">${name || 'Your Name'}</h1>
-                <p class="text-gray-300">${email || ''} | ${phone || ''} | ${location || ''}</p>`
-    });
-  }
-  
-  // Process summary
-  if (jsonData.summary) {
-    sections.push({
-      id: 'summary',
-      title: 'Professional Summary',
-      type: ResumeSectionType.SUMMARY,
-      content: `<p class="text-gray-200">${jsonData.summary}</p>`
-    });
-  }
-  
-  // Process experience
-  if (jsonData.experience && jsonData.experience.length > 0) {
-    // Add main experience section
-    sections.push({
-      id: 'experience',
-      title: 'Professional Experience',
-      type: ResumeSectionType.EXPERIENCE,
-      content: `<h2>Professional Experience</h2>`
-    });
-    
-    // Add individual job roles
-    jsonData.experience.forEach((exp: any, index: number) => {
-      const bullets = exp.bullets || [];
+  // Parse resume content (JSON) into sections
+  const parseResumeToSections = (content: string): ResumeSection[] => {
+    try {
+      // First, try to parse as JSON
+      const jsonData = JSON.parse(content);
+      console.log("Parsed content as JSON:", jsonData);
       
-      const bulletsList = bullets.length > 0 
-        ? `<ul class="list-disc pl-5">${bullets.map((bullet: string) => 
-            `<li>${bullet}</li>`).join('')}</ul>`
-        : '<ul class="list-disc pl-5"><li>Add job responsibilities...</li></ul>';
+      // Check if we have the raw sections data (from our enhanced save)
+      if (jsonData._rawSections && Array.isArray(jsonData._rawSections)) {
+        console.log("Found _rawSections in JSON data, using directly");
+        return jsonData._rawSections as ResumeSection[];
+      }
+      
+      // Check if this is JSON data with a header object (our LLM format)
+      if (jsonData.header) {
+        console.log("Found JSON with header object - handling as LLM output");
+        return convertJsonToSections(jsonData);
+      }
+      
+      // If not in LLM format but still JSON, return empty array or default sections
+      console.log("JSON format not recognized, returning empty sections");
+      return [];
+      
+    } catch (e) {
+      console.log("Content is not valid JSON, treating as legacy format");
+      return parseMarkdownContent(content);
+    }
+  };
+
+  // Enhanced function to convert JSON to sections
+  const convertJsonToSections = (jsonData: any): ResumeSection[] => {
+    const sections: ResumeSection[] = [];
+    
+    // Process header
+    if (jsonData.header) {
+      const { name, email, phone, location } = jsonData.header;
+      const contactInfo = [email, phone, location].filter(Boolean).join(' | ');
       
       sections.push({
-        id: exp.id || `job-role-${index}`,
-        title: exp.title || 'Job Title',
-        type: ResumeSectionType.JOB_ROLE,
-        parentId: 'experience',
-        content: `<h3>${exp.title || 'Job Title'}</h3>
-                  <p>${exp.company || 'Company'} | ${exp.dateRange || 'Date Range'}</p>
-                  ${bulletsList}`
+        id: 'header',
+        title: 'Header',
+        type: ResumeSectionType.HEADER,
+        content: `<h1 class="text-2xl font-bold">${name || 'Your Name'}</h1>
+                  <p class="text-gray-300">${contactInfo}</p>`
       });
-    });
-  }
-  
-  // Process education - Make sure this has a proper ID and clear parent/child relationship
-  if (jsonData.education && jsonData.education.length > 0) {
-    // Create a unique ID for the education section
-    const educationSectionId = 'education-section-' + Date.now();
+    }
     
-    let educationContent = '<h2>Education</h2>';
+    // Process summary - check for raw HTML first
+    if (jsonData.summary || jsonData._rawSummaryHtml) {
+      sections.push({
+        id: 'summary',
+        title: 'Professional Summary',
+        type: ResumeSectionType.SUMMARY,
+        content: jsonData._rawSummaryHtml || `<p class="text-gray-200">${jsonData.summary}</p>`
+      });
+    }
     
-    jsonData.education.forEach((edu: any, index: number) => {
-      educationContent += `<div class="mb-4">
-        <h3>${edu.degree || 'Degree'}</h3>
-        <p>${edu.institution || 'Institution'} | ${edu.year || ''}</p>
-      </div>`;
-    });
+    // Process experience
+    if (jsonData.experience && jsonData.experience.length > 0) {
+      // Add main experience section
+      const experienceSectionId = 'experience';
+      sections.push({
+        id: experienceSectionId,
+        title: 'Professional Experience',
+        type: ResumeSectionType.EXPERIENCE,
+        content: `<h2>Professional Experience</h2>`
+      });
+      
+      // Add individual job roles
+      jsonData.experience.forEach((exp: any, index: number) => {
+        // Use stored raw HTML if available, otherwise reconstruct
+        if (exp._rawHtml) {
+          sections.push({
+            id: exp.id || `job-role-${index}`,
+            title: exp.title || 'Job Title',
+            type: ResumeSectionType.JOB_ROLE,
+            parentId: experienceSectionId,
+            content: exp._rawHtml
+          });
+        } else {
+          const bullets = exp.bullets || [];
+          
+          const bulletsList = bullets.length > 0 
+            ? `<ul class="list-disc pl-5">${bullets.map((bullet: string) => 
+                `<li>${bullet}</li>`).join('')}</ul>`
+            : '<ul class="list-disc pl-5"><li>Add job responsibilities...</li></ul>';
+          
+          sections.push({
+            id: exp.id || `job-role-${index}`,
+            title: exp.title || 'Job Title',
+            type: ResumeSectionType.JOB_ROLE,
+            parentId: experienceSectionId,
+            content: `<h3>${exp.title || 'Job Title'}</h3>
+                      <p>${exp.company || 'Company'} | ${exp.dateRange || 'Date Range'}</p>
+                      ${bulletsList}`
+          });
+        }
+      });
+    }
     
-    // Add education as a separate top-level section with a clear section type
-    sections.push({
-      id: educationSectionId,
-      title: 'Education',
-      type: ResumeSectionType.EDUCATION,
-      content: educationContent,
-      // Make sure it has NO parentId
-      parentId: undefined
-    });
-  }
-  
-  // Process skills
-  if (jsonData.skills) {
-    let skillsContent = '';
+    // Process education
+    if (jsonData.education && jsonData.education.length > 0) {
+      // Create a unique ID for the education section
+      const educationSectionId = 'education-section';
+      
+      // Use raw HTML if available
+      if (jsonData._rawEducationHtml) {
+        sections.push({
+          id: educationSectionId,
+          title: 'Education',
+          type: ResumeSectionType.EDUCATION,
+          content: jsonData._rawEducationHtml
+        });
+      } else {
+        let educationContent = '<h2>Education</h2>';
+        
+        jsonData.education.forEach((edu: any) => {
+          educationContent += `<div class="mb-4">
+            <h3>${edu.degree || 'Degree'}</h3>
+            <p>${edu.institution || 'Institution'} | ${edu.year || ''}</p>
+          </div>`;
+        });
+        
+        sections.push({
+          id: educationSectionId,
+          title: 'Education',
+          type: ResumeSectionType.EDUCATION,
+          content: educationContent
+        });
+      }
+    }
     
-    // Handle skills as an object with categories
-    if (typeof jsonData.skills === 'object' && !Array.isArray(jsonData.skills)) {
-      for (const [category, skillsList] of Object.entries(jsonData.skills)) {
-        if (Array.isArray(skillsList) && skillsList.length > 0) {
-          skillsContent += `<p><strong>${category.charAt(0).toUpperCase() + category.slice(1)}:</strong> `;
-          skillsContent += (skillsList as string[]).join(', ');
-          skillsContent += '</p>';
+    // Process skills - use raw HTML if available
+    if (jsonData.skills || jsonData._rawSkillsHtml) {
+      if (jsonData._rawSkillsHtml) {
+        sections.push({
+          id: 'skills',
+          title: 'Skills',
+          type: ResumeSectionType.SKILLS,
+          content: jsonData._rawSkillsHtml
+        });
+      } else {
+        let skillsContent = '';
+        
+        // Handle skills as an object with categories
+        if (typeof jsonData.skills === 'object' && !Array.isArray(jsonData.skills)) {
+          for (const [category, skillsList] of Object.entries(jsonData.skills)) {
+            if (Array.isArray(skillsList) && skillsList.length > 0) {
+              skillsContent += `<p><strong>${category.charAt(0).toUpperCase() + category.slice(1)}:</strong> `;
+              skillsContent += (skillsList as string[]).join(', ');
+              skillsContent += '</p>';
+            }
+          }
+        } 
+        // Handle skills as an array
+        else if (Array.isArray(jsonData.skills)) {
+          skillsContent = `<p class="text-gray-200">${jsonData.skills.join(', ')}</p>`;
+        }
+        
+        if (skillsContent) {
+          sections.push({
+            id: 'skills',
+            title: 'Skills',
+            type: ResumeSectionType.SKILLS,
+            content: skillsContent
+          });
         }
       }
-    } 
-    // Handle skills as an array
-    else if (Array.isArray(jsonData.skills)) {
-      skillsContent = `<p class="text-gray-200">${jsonData.skills.join(', ')}</p>`;
     }
     
-    if (skillsContent) {
-      sections.push({
-        id: 'skills',
-        title: 'Skills',
-        type: ResumeSectionType.SKILLS,
-        content: skillsContent
-      });
+    // Process certifications if available - use raw HTML if available
+    if (jsonData.certifications || jsonData._rawCertificationsHtml) {
+      if (jsonData._rawCertificationsHtml) {
+        sections.push({
+          id: 'certifications',
+          title: 'Certifications',
+          type: ResumeSectionType.CERTIFICATIONS,
+          content: jsonData._rawCertificationsHtml
+        });
+      } else if (jsonData.certifications && jsonData.certifications.length > 0) {
+        const certContent = `<ul class="list-disc pl-5">
+          ${jsonData.certifications.map((cert: any) => {
+            const certName = typeof cert === 'string' ? cert : (cert.name || cert.title);
+            return `<li>${certName}</li>`;
+          }).join('')}
+        </ul>`;
+        
+        sections.push({
+          id: 'certifications',
+          title: 'Certifications',
+          type: ResumeSectionType.CERTIFICATIONS,
+          content: certContent
+        });
+      }
     }
-  }
-  
-  // Process certifications if available
-  if (jsonData.certifications && jsonData.certifications.length > 0) {
-    const certContent = `<ul class="list-disc pl-5">
-      ${jsonData.certifications.map((cert: any) => {
-        const certName = typeof cert === 'string' ? cert : (cert.name || cert.title);
-        return `<li>${certName}</li>`;
-      }).join('')}
-    </ul>`;
     
-    sections.push({
-      id: 'certifications',
-      title: 'Certifications',
-      type: ResumeSectionType.CERTIFICATIONS,
-      content: certContent
-    });
-  }
+    return sections;
+  };
   
-  return sections;
-}; 
-  
-  // Parse raw markdown content into sections
+  // Parse legacy markdown content into sections (kept for backward compatibility)
   const parseMarkdownContent = (content: string): ResumeSection[] => {
-    console.log("Parsing as markdown/text content");
+    console.log("Parsing as legacy format content");
     const sections: ResumeSection[] = [];
     
     // Extract header (name and contact info)
@@ -602,101 +641,290 @@ const convertLlmJsonToSections = (jsonData: any): ResumeSection[] => {
       .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
       .replace(/\*(.*?)\*/g, '<em>$1</em>');
   };
-  // Convert sections back to markdown
-  const sectionsToMarkdown = (sections: ResumeSection[]): string => {
-    let markdown = '';
+
+  // Improved function to extract bullet points from job content
+  const extractBulletPoints = (content: string): string[] => {
+    if (!content) return [];
+    
+    // First try to extract from list items
+    const bulletMatches = Array.from(content.matchAll(/<li[^>]*>([\s\S]*?)<\/li>/gi));
+    
+    if (bulletMatches.length > 0) {
+      return bulletMatches.map(match => {
+        // Keep formatting like <strong> and <em> inside bullets
+        const bullet = match[1]
+          .replace(/<strong>(.*?)<\/strong>/gi, '$1')
+          .replace(/<em>(.*?)<\/em>/gi, '$1')
+          .replace(/<[^>]+>/g, '');
+        
+        return bullet.trim();
+      });
+    }
+    
+    // If no li tags found, try to parse from text with bullet markers
+    const text = stripHtml(content);
+    const lines = text.split('\n');
+    const bulletLines = lines.filter(line => {
+      const trimmed = line.trim();
+      return trimmed.startsWith('-') || trimmed.startsWith('•') || trimmed.startsWith('*');
+    });
+    
+    if (bulletLines.length > 0) {
+      return bulletLines.map(line => {
+        return line.trim().replace(/^[-•*]\s+/, '');
+      });
+    }
+    
+    return [];
+  };
+
+  // Enhanced HTML stripping function that preserves important text
+  const stripHtml = (html: string): string => {
+    if (!html) return '';
+    
+    let text = html
+      .replace(/<strong>(.*?)<\/strong>/gi, '$1')
+      .replace(/<em>(.*?)<\/em>/gi, '$1')
+      .replace(/<h[1-6][^>]*>(.*?)<\/h[1-6]>/gi, '$1\n')
+      .replace(/<li[^>]*>(.*?)<\/li>/gi, '• $1\n')
+      .replace(/<ul[^>]*>(.*?)<\/ul>/gi, '$1\n')
+      .replace(/<ol[^>]*>(.*?)<\/ol>/gi, '$1\n')
+      .replace(/<p[^>]*>(.*?)<\/p>/gi, '$1\n\n')
+      .replace(/<br\s*\/?>/gi, '\n')
+      .replace(/<div[^>]*>(.*?)<\/div>/gi, '$1\n')
+      .replace(/<\/div>/gi, '\n')
+      .replace(/<[^>]+>/g, '');
+    
+    text = text
+      .replace(/\n{3,}/g, '\n\n')
+      .replace(/^\s+|\s+$/g, '');
+    
+    return text;
+  };
+
+  // Enhanced sectionsToStructuredData function
+  const sectionsToStructuredData = (sections: ResumeSection[]): any => {
+    const structuredData: any = {
+      header: {
+        name: '',
+        email: '',
+        phone: '',
+        location: ''
+      },
+      summary: '',
+      experience: [],
+      education: [],
+      skills: [],
+      certifications: []
+    };
     
     // Process header section
     const header = sections.find(s => s.type === 'HEADER');
     if (header) {
       const nameMatch = header.content.match(/<h1[^>]*>(.*?)<\/h1>/i);
       if (nameMatch && nameMatch[1]) {
-        markdown += `# ${stripHtml(nameMatch[1])}\n\n`;
+        structuredData.header.name = stripHtml(nameMatch[1]);
       }
       
       const contactMatch = header.content.match(/<p[^>]*>(.*?)<\/p>/i);
       if (contactMatch && contactMatch[1]) {
-        markdown += `${stripHtml(contactMatch[1])}\n\n`;
+        const contactInfo = stripHtml(contactMatch[1]).split('|');
+        if (contactInfo.length >= 3) {
+          structuredData.header.email = contactInfo[0].trim();
+          structuredData.header.phone = contactInfo[1].trim();
+          structuredData.header.location = contactInfo[2].trim();
+        } else if (contactInfo.length === 2) {
+          structuredData.header.email = contactInfo[0].trim();
+          structuredData.header.phone = contactInfo[1].trim();
+        } else if (contactInfo.length === 1) {
+          const contactText = contactInfo[0].trim();
+          if (contactText.includes('@')) {
+            structuredData.header.email = contactText;
+          } else if (/\d/.test(contactText)) {
+            structuredData.header.phone = contactText;
+          } else {
+            structuredData.header.location = contactText;
+          }
+        }
+      }
+      
+      // Store original HTML content
+      structuredData._rawHeaderHtml = header.content;
+    }
+    
+    // Process summary section with improved HTML handling
+    const summary = sections.find(s => s.type === 'SUMMARY');
+    if (summary) {
+      const summaryMatch = summary.content.match(/<p[^>]*>([\s\S]*?)<\/p>/i);
+      if (summaryMatch && summaryMatch[1]) {
+        structuredData.summary = stripHtml(summaryMatch[1]);
+      } else {
+        structuredData.summary = stripHtml(summary.content);
+      }
+      structuredData._rawSummaryHtml = summary.content;
+    }
+    
+    // Process experience section with improved bullet point extraction
+    const experienceSections = sections.filter(s => s.type === 'JOB_ROLE');
+    experienceSections.forEach(job => {
+      const titleMatch = job.content.match(/<h3[^>]*>(.*?)<\/h3>/i);
+      const companyMatch = job.content.match(/<p[^>]*>(.*?)<\/p>/i);
+      const bullets = extractBulletPoints(job.content);
+      const title = titleMatch ? stripHtml(titleMatch[1]) : job.title;
+      let company = '';
+      let dateRange = '';
+      
+      if (companyMatch && companyMatch[1]) {
+        const companyParts = stripHtml(companyMatch[1]).split('|');
+        if (companyParts.length >= 2) {
+          company = companyParts[0].trim();
+          dateRange = companyParts[1].trim();
+        } else {
+          company = companyParts[0].trim();
+        }
+      }
+      
+      const experienceEntry = {
+        id: job.id,
+        title,
+        company,
+        dateRange,
+        type: 'JOB_ROLE',
+        bullets,
+        _rawHtml: job.content
+      };
+      
+      structuredData.experience.push(experienceEntry);
+    });
+    
+    // Process education section
+    const educationSection = sections.find(s => s.type === 'EDUCATION');
+    if (educationSection) {
+      structuredData._rawEducationHtml = educationSection.content;
+      const h3Matches = Array.from(educationSection.content.matchAll(/<h3[^>]*>(.*?)<\/h3>/gi));
+      const pMatches = Array.from(educationSection.content.matchAll(/<p[^>]*>(.*?)<\/p>/gi));
+      
+      if (h3Matches.length > 0 && pMatches.length > 0) {
+        for (let i = 0; i < h3Matches.length; i++) {
+          if (i < pMatches.length) {
+            const degree = stripHtml(h3Matches[i][1]);
+            let institution = '';
+            let year = '';
+            const details = stripHtml(pMatches[i][1]);
+            const parts = details.split('|');
+            
+            if (parts.length >= 2) {
+              institution = parts[0].trim();
+              year = parts[1].trim();
+            } else {
+              institution = details.trim();
+            }
+            
+            structuredData.education.push({
+              degree,
+              institution,
+              year
+            });
+          }
+        }
+      }
+      
+      if (structuredData.education.length === 0) {
+        const divMatches = Array.from(educationSection.content.matchAll(/<div[^>]*>([\s\S]*?)<\/div>/gi));
+        
+        for (const match of divMatches) {
+          const content = match[1];
+          const h3Match = content.match(/<h3[^>]*>(.*?)<\/h3>/i);
+          const pMatch = content.match(/<p[^>]*>(.*?)<\/p>/i);
+          
+          if (h3Match && pMatch) {
+            const degree = stripHtml(h3Match[1]);
+            const parts = stripHtml(pMatch[1]).split('|');
+            let institution = '';
+            let year = '';
+            
+            if (parts.length >= 2) {
+              institution = parts[0].trim();
+              year = parts[1].trim();
+            } else {
+              institution = parts[0].trim();
+            }
+            
+            structuredData.education.push({
+              degree,
+              institution,
+              year
+            });
+          }
+        }
+      }
+      
+      if (structuredData.education.length === 0) {
+        structuredData.education.push({
+          degree: educationSection.title,
+          institution: 'University Name',
+          year: ''
+        });
       }
     }
     
-    // Process other sections
-    sections.forEach(section => {
-      if (section.type === 'HEADER') return; // Already processed
+    // Process skills section
+    const skills = sections.find(s => s.type === 'SKILLS');
+    if (skills) {
+      structuredData._rawSkillsHtml = skills.content;
+      const categories: Record<string, string[]> = {};
+      const pMatches = Array.from(skills.content.matchAll(/<p[^>]*><strong>(.*?)<\/strong>:(.*?)<\/p>/gi));
       
-      if (section.type === 'EXPERIENCE') {
-        // Just add the section heading
-        markdown += `## ${section.title}\n\n`;
-      } else if (section.type === 'JOB_ROLE') {
-        // Extract job title
-        const titleMatch = section.content.match(/<h3[^>]*>(.*?)<\/h3>/i);
-        const title = titleMatch ? stripHtml(titleMatch[1]) : section.title;
-        
-        // Extract company and dates
-        const companyMatch = section.content.match(/<p[^>]*>(.*?)<\/p>/i);
-        const companyAndDates = companyMatch ? stripHtml(companyMatch[1]) : '';
-        
-        markdown += `### ${title}\n${companyAndDates}\n\n`;
-        
-        // Extract bullet points
-        const liMatches = Array.from(section.content.matchAll(/<li[^>]*>(.*?)<\/li>/gi));
-        for (const match of liMatches) {
-          markdown += `- ${stripHtml(match[1])}\n`;
+      if (pMatches.length > 0) {
+        for (const match of pMatches) {
+          const category = stripHtml(match[1]).toLowerCase();
+          const skillsList = stripHtml(match[2]).split(',').map(s => s.trim());
+          categories[category] = skillsList;
         }
-        
-        markdown += '\n';
+        structuredData.skills = categories;
       } else {
-        // Regular section
-        markdown += `## ${section.title}\n\n`;
-        
-        // Extract and format content
-        const contentHtml = section.content;
-        let contentText;
-        
-        // Check if content contains specific HTML elements
-        if (contentHtml.includes('<h3') || contentHtml.includes('<li') || contentHtml.includes('<p')) {
-          // Process HTML content by elements
-          const h3Matches = Array.from(contentHtml.matchAll(/<h3[^>]*>(.*?)<\/h3>/gi));
-          const liMatches = Array.from(contentHtml.matchAll(/<li[^>]*>(.*?)<\/li>/gi));
-          const pMatches = Array.from(contentHtml.matchAll(/<p[^>]*>(.*?)<\/p>/gi));
-          
-          contentText = '';
-          
-          // Add h3 headers
-          for (const match of h3Matches) {
-            contentText += `### ${stripHtml(match[1])}\n\n`;
-          }
-          
-          // Add paragraphs
-          for (const match of pMatches) {
-            contentText += `${stripHtml(match[1])}\n\n`;
-          }
-          
-          // Add bullet points
-          for (const match of liMatches) {
-            contentText += `- ${stripHtml(match[1])}\n`;
-          }
+        const simpleMatch = skills.content.match(/<p[^>]*>(.*?)<\/p>/i);
+        if (simpleMatch && simpleMatch[1]) {
+          structuredData.skills = stripHtml(simpleMatch[1]).split(',').map(s => s.trim());
         } else {
-          // Simple strip of all HTML
-          contentText = stripHtml(contentHtml);
+          const bulletMatches = Array.from(skills.content.matchAll(/<li[^>]*>(.*?)<\/li>/gi));
+          if (bulletMatches.length > 0) {
+            structuredData.skills = bulletMatches.map(match => stripHtml(match[1]));
+          }
         }
-        
-        markdown += `${contentText}\n\n`;
       }
-    });
+    }
     
-    return markdown;
+    // Process certifications section
+    const certifications = sections.find(s => s.type === 'CERTIFICATIONS');
+    if (certifications) {
+      structuredData._rawCertificationsHtml = certifications.content;
+      const bulletMatches = Array.from(certifications.content.matchAll(/<li[^>]*>(.*?)<\/li>/gi));
+      if (bulletMatches.length > 0) {
+        structuredData.certifications = bulletMatches.map(match => stripHtml(match[1]));
+      }
+    }
+    
+    // Store the complete section data as a backup
+    structuredData._rawSections = sections.map(section => ({
+      id: section.id,
+      title: section.title,
+      type: section.type,
+      content: section.content,
+      parentId: section.parentId
+    }));
+    
+    structuredData._meta = {
+      version: '2.0',
+      preserved: true,
+      lastUpdated: new Date().toISOString()
+    };
+    
+    return structuredData;
   };
   
-  // Strip HTML tags
-  const stripHtml = (html: string): string => {
-    if (!html) return '';
-    return html.replace(/<\/?[^>]+(>|$)/g, '');
-  };
-  // Save resume
-  // Updated handleSave function for the useResumeData hook
-// Updated handleSave function to only save as JSON
-const handleSave = async () => {
+  // Define handleSave outside of sectionsToStructuredData
+      const handleSave = async () => {
   if (!jobApplicationId && !currentResumeId) {
     setError('Missing job application ID or resume ID for saving');
     return;
@@ -706,34 +934,41 @@ const handleSave = async () => {
   setError(null);
   
   try {
-    // Get the structured data from sections
     const structuredData = sectionsToStructuredData(sections);
     
-    console.log("Saving resume with:", { 
-      currentResumeId, 
-      jobApplicationId, 
-      contentType: 'JSON', 
-      hasStructuredData: !!structuredData
-    });
+    // Debug log the structured data
+    console.log("structuredData type:", typeof structuredData);
+    console.log("structuredData keys:", Object.keys(structuredData || {}));
+    
+    // Ensure jsonContent is properly set with a fallback
+    const jsonContentToSave = structuredData ? 
+      (typeof structuredData === 'string' ? structuredData : JSON.stringify(structuredData)) 
+      : JSON.stringify({});
+    
+    console.log("jsonContentToSave length:", jsonContentToSave.length);
+    
+    // Create a properly structured payload
+    const payload = {
+      id: currentResumeId,
+      jsonContent: jsonContentToSave,
+      markdownContent: null,  // Explicitly null
+      contentType: 'json'
+    };
+    
+    console.log("Sending payload with keys:", Object.keys(payload));
     
     let response;
     
     if (currentResumeId) {
-      // Update existing resume
       console.log("Updating existing resume ID:", currentResumeId);
       response = await fetch(`/api/resume/update`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({
-          id: currentResumeId,
-          jsonContent: structuredData,
-          contentType: 'json'
-        }),
+        body: JSON.stringify(payload)
       });
     } else {
-      // Create new resume
       console.log("Creating new resume for job ID:", jobApplicationId);
       response = await fetch('/api/resume/save', {
         method: 'POST',
@@ -742,240 +977,31 @@ const handleSave = async () => {
         },
         body: JSON.stringify({
           jobApplicationId,
-          jsonContent: structuredData,
+          jsonContent: jsonContentToSave,
+          markdownContent: null,
           isPrimary: true,
           contentType: 'json'
         }),
       });
     }
-    
-    if (!response.ok) {
-      const errorText = await response.text();
-      throw new Error(`Failed to save resume: ${response.status} - ${errorText}`);
-    }
-    
-    const data = await response.json();
-    console.log("Resume saved successfully:", data);
-    setCurrentResumeId(data.id);
-    setSaveSuccess(true);
-    
-    // Clear success message after a delay
-    setTimeout(() => setSaveSuccess(false), 3000);
-  } catch (err) {
-    console.error('Error saving resume:', err);
-    setError('Failed to save resume. Please try again.');
-  } finally {
-    setIsSaving(false);
-  }
-};
-// Function to convert sections to structured data
-const sectionsToStructuredData = (sections: ResumeSection[]): any => {
-  const structuredData: any = {
-    header: {
-      name: '',
-      email: '',
-      phone: '',
-      location: ''
-    },
-    summary: '',
-    experience: [],
-    education: [],
-    skills: [],
-    certifications: []
-  };
-  
-  // Process header section
-  const header = sections.find(s => s.type === 'HEADER');
-  if (header) {
-    const nameMatch = header.content.match(/<h1[^>]*>(.*?)<\/h1>/i);
-    if (nameMatch && nameMatch[1]) {
-      structuredData.header.name = stripHtml(nameMatch[1]);
-    }
-    
-    const contactMatch = header.content.match(/<p[^>]*>(.*?)<\/p>/i);
-    if (contactMatch && contactMatch[1]) {
-      const contactInfo = stripHtml(contactMatch[1]).split('|');
-      if (contactInfo.length >= 3) {
-        structuredData.header.email = contactInfo[0].trim();
-        structuredData.header.phone = contactInfo[1].trim();
-        structuredData.header.location = contactInfo[2].trim();
-      } else if (contactInfo.length === 2) {
-        structuredData.header.email = contactInfo[0].trim();
-        structuredData.header.phone = contactInfo[1].trim();
-      } else if (contactInfo.length === 1) {
-        // Try to determine if it's an email or phone
-        const contactText = contactInfo[0].trim();
-        if (contactText.includes('@')) {
-          structuredData.header.email = contactText;
-        } else if (/\d/.test(contactText)) {
-          structuredData.header.phone = contactText;
-        } else {
-          structuredData.header.location = contactText;
-        }
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`Failed to save resume: ${response.status} - ${errorText}`);
       }
-    }
-  }
-  
-  // Process summary section
-  const summary = sections.find(s => s.type === 'SUMMARY');
-  if (summary) {
-    const summaryMatch = summary.content.match(/<p[^>]*>([\s\S]*?)<\/p>/i);
-    if (summaryMatch && summaryMatch[1]) {
-      structuredData.summary = stripHtml(summaryMatch[1]);
-    }
-  }
-  
-  // Process experience section
-  const experienceSections = sections.filter(s => s.type === 'JOB_ROLE');
-  experienceSections.forEach(job => {
-    const titleMatch = job.content.match(/<h3[^>]*>(.*?)<\/h3>/i);
-    const companyMatch = job.content.match(/<p[^>]*>(.*?)<\/p>/i);
-    const bulletMatches = Array.from(job.content.matchAll(/<li[^>]*>(.*?)<\/li>/gi));
-    
-    const title = titleMatch ? stripHtml(titleMatch[1]) : job.title;
-    let company = '';
-    let dateRange = '';
-    
-    if (companyMatch && companyMatch[1]) {
-      const companyParts = stripHtml(companyMatch[1]).split('|');
-      if (companyParts.length >= 2) {
-        company = companyParts[0].trim();
-        dateRange = companyParts[1].trim();
-      } else {
-        company = companyParts[0].trim();
-      }
-    }
-    
-    const bullets = bulletMatches.map(match => stripHtml(match[1]));
-    
-    structuredData.experience.push({
-      id: job.id,
-      title,
-      company,
-      dateRange,
-      type: 'JOB_ROLE',
-      bullets
-    });
-  });
-  
-  // Process education section - Update this part
-  const educationSection = sections.find(s => s.type === 'EDUCATION');
-  if (educationSection) {
-    console.log("Processing education section for structured data:", educationSection);
-    
-    // First, try to extract structured education content
-    const h3Matches = Array.from(educationSection.content.matchAll(/<h3[^>]*>(.*?)<\/h3>/gi));
-    const pMatches = Array.from(educationSection.content.matchAll(/<p[^>]*>(.*?)<\/p>/gi));
-    
-    // If we have matching h3/p pairs, process them
-    if (h3Matches.length > 0 && pMatches.length > 0) {
-      for (let i = 0; i < h3Matches.length; i++) {
-        if (i < pMatches.length) {
-          const degree = stripHtml(h3Matches[i][1]);
-          let institution = '';
-          let year = '';
-          
-          const details = stripHtml(pMatches[i][1]);
-          const parts = details.split('|');
-          
-          if (parts.length >= 2) {
-            institution = parts[0].trim();
-            year = parts[1].trim();
-          } else {
-            institution = details.trim();
-          }
-          
-          structuredData.education.push({
-            degree,
-            institution,
-            year
-          });
-        }
-      }
-    }
-    
-    // If we couldn't extract structured education, try div-based approach
-    if (structuredData.education.length === 0) {
-      const divMatches = Array.from(educationSection.content.matchAll(/<div[^>]*>([\s\S]*?)<\/div>/gi))
       
-      for (const match of divMatches) {
-        const content = match[1];
-        const h3Match = content.match(/<h3[^>]*>(.*?)<\/h3>/i);
-        const pMatch = content.match(/<p[^>]*>(.*?)<\/p>/i);
-        
-        if (h3Match && pMatch) {
-          const degree = stripHtml(h3Match[1]);
-          const parts = stripHtml(pMatch[1]).split('|');
-          
-          let institution = '';
-          let year = '';
-          
-          if (parts.length >= 2) {
-            institution = parts[0].trim();
-            year = parts[1].trim();
-          } else {
-            institution = parts[0].trim();
-          }
-          
-          structuredData.education.push({
-            degree,
-            institution,
-            year
-          });
-        }
-      }
+      const data = await response.json();
+      console.log("Resume saved successfully:", data);
+      setCurrentResumeId(data.id);
+      setSaveSuccess(true);
+      
+      setTimeout(() => setSaveSuccess(false), 3000);
+    } catch (err) {
+      console.error('Error saving resume:', err);
+      setError('Failed to save resume. Please try again.');
+    } finally {
+      setIsSaving(false);
     }
-    
-    // Fallback: if nothing was extracted, at least create one placeholder entry
-    if (structuredData.education.length === 0) {
-      structuredData.education.push({
-        degree: educationSection.title,
-        institution: 'University of Toronto',
-        year: ''
-      });
-    }
-  }
-  
-  // Process skills section
-  const skills = sections.find(s => s.type === 'SKILLS');
-  if (skills) {
-    // First check if skills are in a categorized format
-    const categories: Record<string, string[]> = {};
-    const pMatches = Array.from(skills.content.matchAll(/<p[^>]*><strong>(.*?)<\/strong>:(.*?)<\/p>/gi));
-    
-    if (pMatches.length > 0) {
-      for (const match of pMatches) {
-        const category = stripHtml(match[1]).toLowerCase();
-        const skillsList = stripHtml(match[2]).split(',').map(s => s.trim());
-        categories[category] = skillsList;
-      }
-      structuredData.skills = categories;
-    } else {
-      // Check if skills are in a simple comma-separated list
-      const simpleMatch = skills.content.match(/<p[^>]*>(.*?)<\/p>/i);
-      if (simpleMatch && simpleMatch[1]) {
-        structuredData.skills = stripHtml(simpleMatch[1]).split(',').map(s => s.trim());
-      } else {
-        // Check if skills are in a bullet list
-        const bulletMatches = Array.from(skills.content.matchAll(/<li[^>]*>(.*?)<\/li>/gi));
-        if (bulletMatches.length > 0) {
-          structuredData.skills = bulletMatches.map(match => stripHtml(match[1]));
-        }
-      }
-    }
-  }
-  
-  // Process certifications section
-  const certifications = sections.find(s => s.type === 'CERTIFICATIONS');
-  if (certifications) {
-    const bulletMatches = Array.from(certifications.content.matchAll(/<li[^>]*>(.*?)<\/li>/gi));
-    if (bulletMatches.length > 0) {
-      structuredData.certifications = bulletMatches.map(match => stripHtml(match[1]));
-    }
-  }
-  
-  return structuredData;
-};
+  };
 
   return {
     sections,
@@ -991,3 +1017,4 @@ const sectionsToStructuredData = (sections: ResumeSection[]): any => {
     handleSave
   };
 };
+

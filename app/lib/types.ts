@@ -64,6 +64,7 @@ export interface FormState {
 export interface GeneratedResume {
   id: string;
   markdownContent: string;
+  jsonContent: string;
   fileName: string | null;
   version: number;
   isPrimary?: boolean;

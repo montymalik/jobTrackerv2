@@ -24,9 +24,15 @@ const ResumeEditModal: React.FC<ResumeEditModalProps> = ({
 
   // Set content when resume changes
   useEffect(() => {
-    if (resume) {
-      setContent(resume.markdownContent);
-    }
+     if (resume) {
+    // Use jsonContent, fall back to markdownContent only for legacy data
+    const contentToUse = resume.jsonContent || resume.markdownContent || "";
+    console.log('ResumeEditModal loading content:', {
+      source: resume.jsonContent ? 'jsonContent' : 'markdownContent',
+      contentLength: contentToUse.length
+    });
+    setContent(contentToUse);
+  }
   }, [resume]);
 
   // Focus textarea when modal opens
