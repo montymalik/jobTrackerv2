@@ -1,0 +1,102 @@
+/* app/components/resume/builder/resume-print.css */
+
+@media print {
+  /* Hide everything except the resume preview */
+  body * {
+    visibility: hidden;
+  }
+  
+  .preview-container, .preview-container * {
+    visibility: visible;
+  }
+  
+  .preview-container {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 100%;
+    margin: 0;
+    padding: 0;
+    background: white;
+    transform: none !important;
+  }
+  
+  /* Hide UI elements in print view */
+  button, .sticky {
+    display: none !important;
+  }
+  
+  /* Ensure proper page sizing and margins */
+  @page {
+    size: letter portrait;
+    margin: 0; /* Remove browser margins, we'll handle margins in our container */
+  }
+  
+  /* Set the container to exact letter size dimensions with proper margins */
+  .preview-container > div {
+    width: 8.5in !important;
+    height: 11in !important;
+    padding: 0 0.25in 0.25in 0.25in !important;
+    margin: 0 auto !important;
+    box-sizing: border-box !important;
+    overflow: hidden !important; /* Prevent content from flowing to next page */
+    box-shadow: none !important;
+    border: none !important;
+  }
+  
+  /* Ensure proper font sizes */
+  h1 {
+    font-size: 16pt !important;
+    color: #1a4977 !important;
+  }
+  
+  h2 {
+    font-size: 12pt !important;
+  }
+  
+  h3 {
+    font-size: 10.5pt !important;
+  }
+  
+  p, li {
+    font-size: 10pt !important;
+  }
+  
+  /* Table formatting for job roles */
+  table {
+    width: 100% !important;
+    border-collapse: collapse !important;
+  }
+  
+  td[style*="text-align: right"] {
+    text-align: right !important;
+  }
+  
+  /* Proper section spacing */
+  .header-section {
+    margin-bottom: 10px !important;
+  }
+  
+  .section-heading {
+    background-color: #f0f0f0 !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+    color-adjust: exact !important;
+    height: 24px !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+  }
+  
+  /* Ensure proper bullet styling */
+  ul {
+    padding-left: 20px !important;
+    margin-top: 2px !important;
+    margin-bottom: 0 !important;
+  }
+  
+  li {
+    margin-bottom: 1px !important;
+  }
+}

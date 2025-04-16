@@ -1,0 +1,159 @@
+.iframe-resume-preview {
+  background-color: white;
+  border-radius: 0.5rem;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+.preview-controls {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1rem;
+  border-bottom: 1px solid #e5e7eb;
+  position: sticky;
+  top: 0;
+  background-color: white;
+  z-index: 10;
+}
+
+.preview-controls h2 {
+  margin: 0;
+  font-size: 1.25rem;
+  font-weight: 600;
+}
+
+.preview-controls-buttons {
+  display: flex;
+  gap: 10px;
+}
+
+.print-button, .export-pdf-button {
+  background-color: #3b82f6;
+  color: white;
+  border: none;
+  border-radius: 0.375rem;
+  padding: 0.5rem 1rem;
+  font-size: 0.875rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.export-pdf-button {
+  background-color: #10b981; /* Green for PDF export */
+}
+
+.print-button:hover {
+  background-color: #2563eb;
+}
+
+.export-pdf-button:hover {
+  background-color: #059669;
+}
+
+.iframe-container {
+  flex: 1;
+  position: relative;
+  overflow: hidden;
+  min-height: 85vh;
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+  background-color: #f3f4f6;
+  padding: 0; /* Removed padding */
+  box-sizing: border-box;
+}
+
+/* The scale-wrapper applies pure zooming without affecting content styling */
+.scale-wrapper {
+  position: relative;
+  box-shadow: 0 0 10px rgba(0, 0, 0, 0.2);
+  background-color: white;
+  margin: 0 auto; /* Center horizontally, removed vertical margin */
+  overflow: visible; /* Allow content to be visible beyond boundaries */
+  width: 95% !important; /* Use more horizontal space */
+  max-width: 950px !important; /* Larger max-width */
+}
+
+.resume-iframe {
+  border: none;
+  background-color: white;
+  display: block;
+  overflow-y: auto !important; /* Force vertical scrolling */
+  overflow-x: hidden !important; /* Prevent horizontal scrolling */
+  height: 80vh !important; /* Use viewport height for better sizing */
+  min-height: 700px !important; /* Minimum height to ensure proper display */
+}
+
+.loading-overlay {
+  position: absolute;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background-color: rgba(255, 255, 255, 0.9);
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  z-index: 5;
+}
+
+.loading-spinner {
+  width: 2.5rem;
+  height: 2.5rem;
+  border: 0.25rem solid #e5e7eb;
+  border-top-color: #3b82f6;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+  margin-bottom: 0.5rem;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+/* Media query for wider screens to apply better scaling */
+@media (min-width: 1200px) {
+  .scale-wrapper {
+    width: 98% !important;
+    max-width: 1000px !important;
+  }
+}
+
+/* Media query for print */
+@media print {
+  .preview-controls {
+    display: none;
+  }
+  
+  .iframe-container {
+    position: static;
+    overflow: visible;
+    padding: 0;
+    height: auto;
+    background-color: white;
+  }
+  
+  .scale-wrapper {
+    transform: none !important;
+    width: 100% !important;
+    height: auto !important;
+    box-shadow: none;
+  }
+  
+  .resume-iframe {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: auto;
+    overflow: visible;
+  }
+  
+  /* Hide any decorative elements during print */
+  .loading-overlay,
+  .loading-spinner {
+    display: none;
+  }
+}

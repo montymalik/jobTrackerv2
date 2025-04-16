@@ -1,14 +1,9 @@
 // app/components/resume/ResumeBuilder.tsx
-"use client";
-import { ResumeSection, ResumeSectionType } from '@/app/lib/types';
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import ResumeForm from './builder/ResumeForm';
-import ResumePreview from './builder/ResumePreview';
-import LoadingSpinner from '../common/LoadingSpinner';
-import ErrorMessage from '../common/ErrorMessage';
+import IFrameResumePreview from './builder/IFrameResumePreview';
 import { useResumeData } from './builder/hooks/useResumeData';
-import { parseJsonContent } from './resume-editor/utils/resume-parsing-utils';
-import { jsonResumeToSections } from '@/app/lib/json-resume-processor';
+import { ResumeSection, ResumeSectionType } from '@/app/lib/types';
 
 interface ResumeBuilderProps {
   jobApplicationId?: string;
@@ -16,204 +11,202 @@ interface ResumeBuilderProps {
 }
 
 const ResumeBuilder: React.FC<ResumeBuilderProps> = ({ 
-  jobApplicationId,
+  jobApplicationId, 
   resumeId 
 }) => {
-  const [activeSectionId, setActiveSectionId] = useState<string | null>(null);
-
-  // Use the custom hook to handle resume data loading and management
   const {
     sections,
     setSections,
     isLoading,
     error,
-    setError,
     isSaving,
     saveSuccess,
-    setSaveSuccess,
-    currentResumeId,
-    jobDescription,
-    handleSave
+    handleSave,
+    jobDescription
   } = useResumeData(resumeId, jobApplicationId);
-
-  // Set the first section as active when sections change
-  React.useEffect(() => {
+  
+  const [activeSectionId, setActiveSectionId] = useState<string | null>(null);
+  
+  // Set the first section as active when sections load
+  useEffect(() => {
     if (sections.length > 0 && !activeSectionId) {
       setActiveSectionId(sections[0].id);
     }
   }, [sections, activeSectionId]);
-
-  // Handle section update
+  
+  // Update a specific section
   const handleSectionUpdate = (updatedSection: any) => {
-    setSections(prevSections => 
-      prevSections.map(section => 
+    setSections(prev => 
+      prev.map(section => 
         section.id === updatedSection.id ? updatedSection : section
       )
     );
   };
   
-  // Handle adding a new section
-  const handleAddSection = (sectionType: string) => {
-    const newId = `section-${Date.now()}`;
-    let newTitle = 'New Section';
-    let content = '<p>Add content here...</p>';
-    
-    switch (sectionType) {
-      case 'SUMMARY':
-        newTitle = 'Professional Summary';
-        content = '<p class="text-gray-200">Add your professional summary here...</p>';
-        break;
-      case 'EXPERIENCE':
-        newTitle = 'Professional Experience';
-        content = '<h2>Professional Experience</h2>';
-        break;
-      case 'EDUCATION':
-        newTitle = 'Education';
-        content = '<p class="text-gray-200">Add your education details here...</p>';
-        break;
-      case 'SKILLS':
-        newTitle = 'Skills';
-        content = '<p class="text-gray-200">Add your skills here, separated by commas...</p>';
-        break;
-      case 'CERTIFICATIONS':
-        newTitle = 'Certifications';
-        content = '<ul class="list-disc pl-5"><li>Add your certifications here...</li></ul>';
-        break;
-    }
-    
-    const newSection: any = {
-      id: newId,
-      title: newTitle,
+  // Add a new section
+  const handleAddSection = (sectionType: ResumeSectionType) => {
+    const newSection : ResumeSection = {
+      id: `section-${Date.now()}`,
+      title: getSectionTitle(sectionType),
       type: sectionType,
-      content
+      content: getDefaultContent(sectionType)
     };
     
-    setSections(prevSections => [...prevSections, newSection]);
-    setActiveSectionId(newId);
+    setSections(prev => [...prev, newSection]);
+    setActiveSectionId(newSection.id);
   };
   
-  // Handle adding a new job role
+  // Add a new job role
   const handleAddJobRole = () => {
-    // First, ensure we have an experience section
-    let experienceSection = sections.find(s => s.type === 'EXPERIENCE');
+    // Find the experience section to attach this job role to
+    const experienceSection = sections.find(section => 
+      section.type === 'EXPERIENCE' || 
+      section.title.toLowerCase().includes('experience')
+    );
     
+    // If no experience section exists, create one first
     if (!experienceSection) {
-      // Create experience section if it doesn't exist
-      experienceSection = {
-        id: 'experience',
+      const newExpSection = {
+        id: `experience-${Date.now()}`,
         title: 'Professional Experience',
         type: ResumeSectionType.EXPERIENCE,
         content: '<h2>Professional Experience</h2>'
       };
       
-      setSections(prevSections => [...prevSections, experienceSection!]);
+      const newJobRole = {
+        id: `job-role-${Date.now()}`,
+        title: 'Job Title',
+        type: ResumeSectionType.JOB_ROLE,
+        parentId: newExpSection.id,
+        content: `<h3>Job Title</h3>
+                  <p>Company Name | Date Range</p>
+                  <ul class="list-disc pl-5">
+                    <li>Add your responsibilities and achievements here...</li>
+                  </ul>`
+      };
+      
+      setSections(prev => [...prev, newExpSection, newJobRole]);
+      setActiveSectionId(newJobRole.id);
+    } else {
+      // If experience section exists, just add a new job role
+      const newJobRole = {
+        id: `job-role-${Date.now()}`,
+        title: 'Job Title',
+        type: ResumeSectionType.JOB_ROLE,
+        parentId: experienceSection.id,
+        content: `<h3>Job Title</h3>
+                  <p>Company Name | Date Range</p>
+                  <ul class="list-disc pl-5">
+                    <li>Add your responsibilities and achievements here...</li>
+                  </ul>`
+      };
+      
+      setSections(prev => [...prev, newJobRole]);
+      setActiveSectionId(newJobRole.id);
     }
-    
-    const newJobId = `job-role-${Date.now()}`;
-    const newJobRole = {
-      id: newJobId,
-      title: 'New Position',
-      type: ResumeSectionType.JOB_ROLE,
-      parentId: experienceSection.id,
-      content: `<h3>New Position</h3>
-                <p>Company Name | Start Date - End Date</p>
-                <ul class="list-disc pl-5">
-                  <li>Add job responsibilities here...</li>
-                </ul>`
-    };
-    
-    setSections(prevSections => [...prevSections, newJobRole]);
-    setActiveSectionId(newJobId);
   };
-
-  // Handle reordering sections
+  
+  // Handle section reordering
   const handleReorderSections = (reorderedSections: any[]) => {
     setSections(reorderedSections);
-    
-    // Optionally set the active section to the first reordered section
-    if (reorderedSections.length > 0) {
-      setActiveSectionId(reorderedSections[0].id);
-    }
-    
-    // Show success message
-    setSaveSuccess(true);
-    setTimeout(() => setSaveSuccess(false), 3000);
   };
-
-  // Show loading state
+  
+  // Helper to get default section title
+  const getSectionTitle = (sectionType: string): string => {
+    switch (sectionType) {
+      case 'HEADER': return 'Header';
+      case 'SUMMARY': return 'Professional Summary';
+      case 'EXPERIENCE': return 'Professional Experience';
+      case 'EDUCATION': return 'Education';
+      case 'SKILLS': return 'Skills';
+      case 'CERTIFICATIONS': return 'Certifications';
+      case 'PROJECTS': return 'Projects';
+      default: return 'New Section';
+    }
+  };
+  
+  // Helper to get default content for new sections
+  const getDefaultContent = (sectionType: string): string => {
+    switch (sectionType) {
+      case 'HEADER':
+        return `<h1 class="text-2xl font-bold">Your Name</h1>
+                <p class="text-gray-300">email@example.com | (555) 123-4567 | City, State</p>`;
+      case 'SUMMARY':
+        return `<p class="text-gray-200">Experienced professional with a track record of success in...</p>`;
+      case 'SKILLS':
+        return `<p class="text-gray-200">Skill 1, Skill 2, Skill 3, Skill 4, Skill 5</p>`;
+      case 'EDUCATION':
+        return `<h3>Degree Name</h3>
+                <p>University Name | Graduation Year</p>`;
+      case 'CERTIFICATIONS':
+        return `<ul class="list-disc pl-5">
+                  <li>Certification 1</li>
+                  <li>Certification 2</li>
+                </ul>`;
+      case 'PROJECTS':
+        return `<h3>Project Name</h3>
+                <p>Brief description of the project and your role.</p>`;
+      default:
+        return `<p>Add your content here...</p>`;
+    }
+  };
+  
   if (isLoading) {
-    return <LoadingSpinner message="Loading resume data..." />;
-  }
-
-  // Show no data state
-  if (!isLoading && sections.length === 0) {
     return (
-      <div className="bg-white dark:bg-gray-800 rounded-lg p-6 shadow-md border dark:border-gray-700">
-        <h2 className="text-xl font-bold mb-4 text-gray-800 dark:text-white">Resume Builder - No Data Found</h2>
-        <div className="p-4 bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-700 rounded-md">
-          <p className="text-yellow-800 dark:text-yellow-200 mb-2">
-            ⚠️ No resume sections were loaded. This might be due to:
-          </p>
-          <ul className="list-disc pl-5 text-yellow-700 dark:text-yellow-300 space-y-1">
-            <li>API endpoint not returning data correctly</li>
-            <li>No primary resume found for this job</li>
-            <li>Error in data processing</li>
-          </ul>
-          <div className="mt-4">
-            <button 
-              onClick={() => window.location.reload()} 
-              className="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1 rounded text-sm"
-            >
-              Reload Page
-            </button>
-          </div>
-        </div>
+      <div className="flex items-center justify-center h-screen">
+        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500"></div>
       </div>
     );
   }
-
-  return (
-    <div className="container mx-auto py-6 px-4">
-      <div className="flex justify-between items-center mb-6">
-        <h1 className="text-2xl font-bold">Resume Builder</h1>
-        <div className="space-x-2">
-          <button
-            onClick={handleSave}
-            disabled={isSaving}
-            className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded disabled:opacity-50"
-          >
-            {isSaving ? "Saving..." : "Save Resume"}
-          </button>
-          <button
-            onClick={() => window.history.back()}
-            className="px-4 py-2 bg-gray-600 hover:bg-gray-700 text-white rounded"
-          >
-            Back
-          </button>
-        </div>
+  
+  if (error) {
+    return (
+      <div className="p-4 text-red-500">
+        Error: {error}
       </div>
-      
-      {error && <ErrorMessage message={error} onDismiss={() => setError(null)} />}
-      
-      {saveSuccess && (
-        <div className="mb-4 p-2 bg-green-100 dark:bg-green-900/20 border border-green-200 dark:border-green-800 text-green-800 dark:text-green-200 rounded">
-          Resume saved successfully!
+    );
+  }
+  
+  return (
+    <div className="bg-gray-100 dark:bg-gray-900 min-h-screen p-4">
+      <div className="max-w-7xl mx-auto">
+        <div className="mb-6 flex justify-between items-center">
+          <h1 className="text-2xl font-bold dark:text-white">Resume Builder</h1>
+          <div className="flex space-x-4">
+            <button
+              onClick={handleSave}
+              disabled={isSaving}
+              className={`px-4 py-2 rounded ${
+                isSaving 
+                  ? 'bg-gray-400 cursor-not-allowed' 
+                  : saveSuccess 
+                    ? 'bg-green-500 hover:bg-green-600' 
+                    : 'bg-blue-500 hover:bg-blue-600'
+              } text-white`}
+            >
+              {isSaving ? 'Saving...' : saveSuccess ? 'Saved!' : 'Save Resume'}
+            </button>
+          </div>
         </div>
-      )}
-      
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <ResumeForm
-          sections={sections}
-          activeSectionId={activeSectionId}
-          onSectionSelect={setActiveSectionId}
-          onSectionUpdate={handleSectionUpdate}
-          onAddSection={handleAddSection}
-          onAddJobRole={handleAddJobRole}
-          onReorderSections={handleReorderSections}
-          jobDescription={jobDescription || ''}
-        />
         
-        <ResumePreview sections={sections} />
+        <div className="lg:flex lg:space-x-6 space-y-6 lg:space-y-0">
+          <div className="lg:w-1/2">
+            <ResumeForm
+              sections={sections}
+              activeSectionId={activeSectionId}
+              onSectionSelect={setActiveSectionId}
+              onSectionUpdate={handleSectionUpdate}
+              onAddSection={handleAddSection}
+              onAddJobRole={handleAddJobRole}
+              onReorderSections={handleReorderSections}
+              jobDescription={jobDescription}
+            />
+          </div>
+          <div className="lg:w-1/2">
+            {/* Use the custom preview component instead of the standard one */}
+            <IFrameResumePreview sections={sections} />
+          </div>
+        </div>
       </div>
     </div>
   );

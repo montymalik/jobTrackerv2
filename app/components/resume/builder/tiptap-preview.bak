@@ -1,0 +1,54 @@
+/* tiptap-preview.css */
+
+.preview-container {
+  width: 100%;
+  overflow-x: hidden;  /* Avoid horizontal scrolling */
+  overflow-y: auto;
+  background-color: #f3f4f6;
+  padding: 1rem;
+}
+
+.scale-wrapper {
+  box-shadow: 0 0 6px rgba(0, 0, 0, 0.2);
+  background-color: white;
+}
+
+/* The preview-content area represents the letter sized page */
+.preview-content {
+  width: 8.5in;
+  min-height: 11in;
+  box-sizing: border-box;
+  padding: 0.25in;
+}
+
+/* Page break styling */
+.page-break {
+  border-top: 2px dashed #aaa;
+  margin: 0.5in 0;
+  text-align: center;
+  position: relative;
+}
+
+.page-break::before {
+  content: 'Page Break';
+  position: absolute;
+  top: -0.5rem;
+  left: 50%;
+  transform: translateX(-50%);
+  background-color: white;
+  padding: 0 0.5rem;
+  font-size: 9pt;
+  color: #777;
+}
+
+/* Ensure page-breaks force a new page when printing */
+@media print {
+  .page-break {
+    page-break-before: always;
+  }
+  @page {
+    size: letter;
+    margin: 0.25in;
+  }
+}
+

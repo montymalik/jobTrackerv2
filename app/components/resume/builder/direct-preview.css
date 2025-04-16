@@ -1,0 +1,187 @@
+/* app/components/resume/builder/direct-preview.css */
+
+.direct-resume-preview {
+  background-color: white;
+  border-radius: 0.5rem;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+.preview-controls {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1rem;
+  border-bottom: 1px solid #e5e7eb;
+  position: sticky;
+  top: 0;
+  background-color: white;
+  z-index: 10;
+}
+
+.preview-controls h2 {
+  margin: 0;
+  font-size: 1.125rem;
+  font-weight: 600;
+  color: #111827;
+}
+
+.zoom-controls {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.zoom-btn {
+  background-color: #f3f4f6;
+  border: 1px solid #d1d5db;
+  border-radius: 0.25rem;
+  width: 1.5rem;
+  height: 1.5rem;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  cursor: pointer;
+  font-size: 1rem;
+  line-height: 1;
+  padding: 0;
+}
+
+.zoom-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.pages-container {
+  flex: 1;
+  overflow: auto;
+  padding: 1rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1.5rem;
+}
+
+.resume-page {
+  width: 8.5in;
+  height: 11in;
+  padding: 0.25in;
+  background-color: white;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+  border: 1px solid #e5e7eb;
+  position: relative;
+}
+
+.page-number {
+  position: absolute;
+  bottom: 0.25in;
+  right: 0.25in;
+  font-family: Arial, sans-serif;
+  font-size: 9pt;
+  color: #777777;
+}
+
+.print-button-container {
+  padding: 1rem;
+  text-align: right;
+  border-top: 1px solid #e5e7eb;
+}
+
+.print-button {
+  background-color: #3b82f6;
+  color: white;
+  padding: 0.5rem 1rem;
+  border-radius: 0.25rem;
+  border: none;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.print-button:hover {
+  background-color: #2563eb;
+}
+
+/* Make sure all markup colors and styles are properly displayed */
+.resume-page p {
+  color: #000000 !important;
+}
+
+.resume-page h1, 
+.resume-page h2, 
+.resume-page h3, 
+.resume-page h4, 
+.resume-page h5, 
+.resume-page h6 {
+  color: #000000 !important;
+}
+
+.resume-page ul, 
+.resume-page ol {
+  color: #000000 !important;
+}
+
+.resume-page li {
+  color: #000000 !important;
+}
+
+/* Print styles */
+@media print {
+  body * {
+    visibility: hidden;
+  }
+  
+  .direct-resume-preview,
+  .resume-page,
+  .resume-page * {
+    visibility: visible;
+  }
+  
+  .direct-resume-preview {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: auto;
+    background: white;
+    box-shadow: none;
+    border-radius: 0;
+  }
+  
+  .preview-controls,
+  .print-button-container {
+    display: none !important;
+  }
+  
+  .pages-container {
+    transform: none !important;
+    padding: 0;
+  }
+  
+  .resume-page {
+    width: 100%;
+    height: auto;
+    min-height: 11in;
+    margin: 0;
+    padding: 0.25in;
+    box-shadow: none;
+    border: none;
+    page-break-after: always;
+  }
+  
+  .resume-page:last-child {
+    page-break-after: avoid;
+  }
+  
+  .page-number {
+    position: fixed;
+    bottom: 0.25in;
+    right: 0.25in;
+  }
+  
+  @page {
+    size: letter portrait;
+    margin: 0;
+  }
+}

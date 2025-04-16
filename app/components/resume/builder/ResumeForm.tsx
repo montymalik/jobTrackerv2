@@ -1,6 +1,6 @@
 // app/components/resume/builder/ResumeForm.tsx
 import React, { useState } from 'react';
-import { ResumeSection } from '@/app/lib/types';
+import { ResumeSection, ResumeSectionType } from '@/app/lib/types';
 import SectionTabs from './SectionTabs';
 import SectionEditor from './SectionEditor';
 
@@ -9,7 +9,7 @@ interface ResumeFormProps {
   activeSectionId: string | null;
   onSectionSelect: (sectionId: string) => void;
   onSectionUpdate: (section: ResumeSection) => void;
-  onAddSection: (sectionType: string) => void;
+  onAddSection: (sectionType: ResumeSectionType) => void;
   onAddJobRole: () => void;
   onReorderSections?: (reorderedSections: ResumeSection[]) => void;
   jobDescription?: string | null;
@@ -98,7 +98,7 @@ const ResumeForm: React.FC<ResumeFormProps> = ({
                   <button
                     key={section.type}
                     onClick={() => {
-                      onAddSection(section.type);
+                      onAddSection(section.type as ResumeSectionType);
                       setShowSectionTypeMenu(false);
                     }}
                     className="block w-full text-left px-4 py-2 hover:bg-gray-100 dark:hover:bg-gray-600 text-gray-800 dark:text-gray-200"

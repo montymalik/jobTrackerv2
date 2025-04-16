@@ -1,0 +1,269 @@
+/* app/components/resume/builder/resume-preview.css */
+
+/* Container styles */
+.resume-preview-container {
+  background-color: white;
+  border-radius: 0.5rem;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+.resume-controls {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1rem;
+  border-bottom: 1px solid #e5e7eb;
+  position: sticky;
+  top: 0;
+  background-color: white;
+  z-index: 10;
+}
+
+.print-button {
+  background-color: #3b82f6;
+  color: white;
+  padding: 0.5rem 1rem;
+  border-radius: 0.25rem;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.print-button:hover {
+  background-color: #2563eb;
+}
+
+.tiptap-preview {
+  flex: 1;
+  overflow: auto;
+  padding: 1rem;
+}
+
+/* Resume page styling */
+.resume-page {
+  width: 8.5in;
+  height: 11in;
+  margin: 0 auto 1.25rem;
+  padding: 0.25in;
+  box-sizing: border-box;
+  position: relative;
+  background-color: white;
+  border: 1px solid #e5e7eb;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+}
+
+/* Resume header */
+.resume-header h1 {
+  font-family: Arial, sans-serif;
+  font-size: 16pt;
+  font-weight: bold;
+  color: #1a4977;
+  text-align: center;
+  margin: 0 0 0.5rem;
+}
+
+.resume-header p {
+  font-family: Arial, sans-serif;
+  font-size: 10pt;
+  text-align: center;
+  margin: 0;
+  display: flex;
+  justify-content: space-between;
+}
+
+.resume-header::after {
+  content: '';
+  display: block;
+  border-bottom: 1px solid #c2d1d9;
+  margin-top: 0.25rem;
+  margin-bottom: 0.5rem;
+}
+
+/* Resume summary */
+.resume-summary {
+  font-family: Arial, sans-serif;
+  font-size: 10pt;
+  margin-bottom: 1rem;
+}
+
+/* Section headings */
+.section-heading {
+  font-family: Arial, sans-serif;
+  font-size: 12pt;
+  font-weight: bold;
+  text-transform: uppercase;
+  background-color: #f0f0f0;
+  text-align: center;
+  padding: 0.25rem;
+  margin-bottom: 0.5rem;
+  border-bottom: 1px solid #ddd;
+}
+
+/* Job roles */
+.job-role {
+  margin-bottom: 0.75rem;
+}
+
+.job-title-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-bottom: 0.125rem;
+}
+
+.job-title {
+  font-family: Arial, sans-serif;
+  font-size: 10.5pt;
+  font-weight: bold;
+  text-align: left;
+}
+
+.job-date {
+  font-family: Arial, sans-serif;
+  font-size: 10.5pt;
+  font-weight: bold;
+  text-align: right;
+}
+
+.company-name {
+  font-family: Arial, sans-serif;
+  font-size: 10.5pt;
+  margin-bottom: 0.25rem;
+}
+
+.job-role ul {
+  font-family: Arial, sans-serif;
+  font-size: 10pt;
+  margin-top: 0.25rem;
+  padding-left: 1.25rem;
+  list-style-type: disc;
+}
+
+.job-role li {
+  margin-bottom: 0.0625rem;
+}
+
+/* Education section */
+.education-content {
+  font-family: Arial, sans-serif;
+  font-size: 10pt;
+}
+
+/* Other sections */
+.section-content {
+  font-family: Arial, sans-serif;
+  font-size: 10pt;
+}
+
+/* Page breaks */
+.page-break {
+  page-break-after: always;
+  break-after: page;
+  height: 1.25rem;
+  margin-bottom: 1.25rem;
+  position: relative;
+}
+
+.page-break::before {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 0;
+  right: 0;
+  border-top: 2px dashed #aaa;
+}
+
+.page-break::after {
+  content: 'Page Break';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  background-color: white;
+  padding: 0 0.625rem;
+  font-size: 0.5625rem;
+  color: #777;
+}
+
+/* Continuation header */
+.continuation-header {
+  display: flex;
+  justify-content: space-between;
+  border-bottom: 1px solid #c2d1d9;
+  padding-bottom: 0.25rem;
+  margin-bottom: 0.625rem;
+  font-family: Arial, sans-serif;
+  font-size: 10pt;
+}
+
+.continuation-header .name {
+  font-weight: bold;
+  color: #1a4977;
+}
+
+/* Page footer (page numbers) */
+.page-footer {
+  position: absolute;
+  bottom: 0.25in;
+  right: 0.25in;
+  font-family: Arial, sans-serif;
+  font-size: 9pt;
+  color: #777;
+}
+
+/* Print styles */
+@media print {
+  body * {
+    visibility: hidden;
+  }
+  
+  .resume-preview-container,
+  .resume-preview-container * {
+    visibility: visible;
+  }
+  
+  .resume-preview-container {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 100%;
+    background: white;
+    box-shadow: none;
+    border-radius: 0;
+  }
+  
+  .resume-controls {
+    display: none;
+  }
+  
+  .tiptap-preview {
+    padding: 0;
+    overflow: visible;
+  }
+  
+  .resume-page {
+    margin: 0;
+    padding: 0.25in;
+    border: none;
+    box-shadow: none;
+    page-break-after: always;
+    break-after: page;
+  }
+  
+  .resume-page:last-child {
+    page-break-after: avoid;
+    break-after: avoid;
+  }
+  
+  .page-break {
+    display: none;
+  }
+  
+  /* Set proper page margins */
+  @page {
+    size: letter portrait;
+    margin: 0;
+  }
+}
